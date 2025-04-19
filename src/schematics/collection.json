@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../node_modules/@angular-devkit/schematics/collection-schema.json",
+  "schematics": {
+    "handler": {
+      "aliases": ["ch"],
+      "description": "Generate a Middy handler.",
+      "factory": "./handler/index#default",
+      "schema": "./handler/schema.json"
+    },
+    "domain": {
+        "aliases": ["cd"],
+        "description": "Generate a domain.",
+        "factory": "./domain/index#default",
+        "schema": "./domain/schema.json"
+    },
+    "port": {
+        "aliases": ["cp"],
+        "description": "Generate a domain port and adapter.",
+        "factory": "./port/index#default",
+        "schema": "./port/schema.json"
+    },
+    "service": {
+        "aliases": ["cs"],
+        "description": "Generate a domain service.",
+        "factory": "./service/index#default",
+        "schema": "./service/schema.json"
+    }
+    // Add other schematics (domain, port, service) here later
+  }
+}

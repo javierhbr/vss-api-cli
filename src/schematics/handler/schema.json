@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "id": "SchematicsNestHandler",
+  "title": "Nest Handler Options Schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the handler.",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "x-prompt": "What name would you like to use for the handler?"
+    },
+    "schema": {
+        "type": "boolean",
+        "description": "Generate a Zod schema file.",
+        "default": false,
+        "alias": "s",
+        "x-prompt": "Generate a Zod schema for input validation?"
+    },
+    "path": {
+      "type": "string",
+      "format": "path",
+      "description": "The path to create the handler.",
+      "visible": false
+    },
+    "project": {
+        "type": "string",
+        "description": "The name of the project.",
+        "visible": false
+    }
+  },
+  "required": ["name"]
+}

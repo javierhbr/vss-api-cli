@@ -1,0 +1,16 @@
+<%= portImports %>
+<%= modelImport %>
+
+// Define your service logic here
+export class <%= serviceName %> {
+  constructor(
+    <%= portDependencies %>
+  ) {}
+
+  // Example service method
+  // public async performAction(data: <%= modelName %>): Promise<ResultType> {
+  //   // Use injected ports and models
+  //   // await this.<%= portName %>.somePortMethod(data.id);
+  //   return /* result */;
+  // }
+}

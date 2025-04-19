@@ -1,0 +1,35 @@
+{
+  "name": "vss-ol-cli",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "CLI tool for scaffolding Middy-based serverless projects with hexagonal architecture.",
+  "dependencies": {
+    "commander": "^13.1.0",
+    "fs-extra": "^11.3.0",
+    "inquirer": "^12.5.2"
+  },
+  "devDependencies": {
+    "@angular-devkit/core": "^19.2.8",
+    "@angular-devkit/schematics": "^19.2.8",
+    "@types/fs-extra": "^11.0.4",
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^22.14.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "bin": {
+    "vss-ol-cli": "dist/index.js"
+  },
+  "schematics": "./dist/schematics/collection.json"
+}

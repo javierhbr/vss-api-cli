@@ -1,0 +1,12 @@
+import { <%= portName %> } from '../../<%= domainName %>/ports/<%= portName %>';
+
+// Implement the port interface using specific infrastructure details
+export class <%= adapterName %> implements <%= portName %> {
+  constructor(/* dependencies like API clients, DB connections */) {}
+
+  // Implement the methods defined in <%= portName %>
+  // async exampleMethod(data: any): Promise<ResultType> {
+  //   // Interact with the external system (DB, API, etc.)
+  //   return /* result */;
+  // }
+}

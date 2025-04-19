@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "id": "SchematicsNestDomain",
+  "title": "Nest Domain Options Schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the domain.",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "x-prompt": "What name would you like to use for the domain?"
+    },
+    "model": {
+      "type": "boolean",
+      "description": "Generate a domain model file.",
+      "default": true,
+      "x-prompt": "Generate a domain model?"
+    },
+    "service": {
+      "type": "boolean",
+      "description": "Generate a domain service file.",
+      "default": true,
+      "x-prompt": "Generate a domain service?"
+    },
+    "port": {
+      "type": "boolean",
+      "description": "Generate a domain port interface and its adapter.",
+      "default": true,
+      "x-prompt": "Generate a domain port interface and adapter?"
+    },
+    "adapterType": {
+      "type": "string",
+      "description": "The type of adapter for the port (repository, rest, graphql).",
+      "enum": ["repository", "rest", "graphql", "none"],
+      "default": "repository",
+      "x-prompt": {
+        "message": "If generating a port, what type of adapter should implement it?",
+        "type": "list",
+        "items": ["repository", "rest", "graphql", "none"]
+      }
+    },
+    "path": {
+      "type": "string",
+      "format": "path",
+      "description": "The path to create the domain directory.",
+      "visible": false
+    },
+    "project": {
+        "type": "string",
+        "description": "The name of the project.",
+        "visible": false
+    }
+  },
+  "required": ["name"]
+}

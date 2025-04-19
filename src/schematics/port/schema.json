@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "id": "SchematicsNestPort",
+  "title": "Nest Port Options Schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the port (e.g., UserFinder, PaymentGateway).",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "x-prompt": "What name would you like to use for the port?"
+    },
+    "domain": {
+      "type": "string",
+      "description": "The domain this port belongs to.",
+      "alias": "d",
+      "x-prompt": "Which domain does this port belong to? (e.g., user, product)"
+      // TODO: Add dynamic prompt based on existing domain folders if possible
+    },
+    "adapterType": {
+      "type": "string",
+      "description": "The type of adapter that will implement this port.",
+      "enum": ["repository", "rest", "graphql"],
+      "alias": "t",
+      "default": "repository",
+      "x-prompt": {
+        "message": "What type of adapter will implement this port?",
+        "type": "list",
+        "items": ["repository", "rest", "graphql"]
+      }
+    },
+    "path": {
+      "type": "string",
+      "format": "path",
+      "description": "The path to create the port files.",
+      "visible": false
+    },
+    "project": {
+        "type": "string",
+        "description": "The name of the project.",
+        "visible": false
+    }
+  },
+  "required": ["name", "domain"]
+}

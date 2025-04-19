@@ -1,0 +1,49 @@
+{
+  "compilerOptions": {
+    /* Base Options: */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "es2016", // Or newer target like ES2020
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true, // Recommended for faster builds
+
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true, // Recommended for stricter array/object access
+    "noImplicitAny": true, // Keep this true
+
+    /* If NOT transpiling with TypeScript: */
+    // "module": "preserve", // Keep if using another bundler like esbuild/swc
+    // "noEmit": true, // Keep if using another bundler
+
+    /* If your code runs in the DOM: */
+    "lib": ["es6", "dom"], // Keep 'dom' if needed, otherwise remove
+
+    /* If you're building for Node.js: */
+    "module": "commonjs", // Use CommonJS for Node.js compatibility
+    "outDir": "dist", // Output directory for compiled JS
+    "rootDir": "src", // Source directory
+    "sourceMap": true, // Generate source maps for debugging
+
+    /* Module Resolution Options */
+    "baseUrl": ".", // Base directory for module resolution
+    "paths": { // Optional: Define path aliases
+      "@/*": ["src/*"]
+    },
+
+    /* Linting */
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts"], // Include all TypeScript files in src
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/templates/**/*.ts" // Exclude template files
+  ] // Exclude node_modules and dist
+}
