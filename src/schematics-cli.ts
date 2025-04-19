@@ -1,5 +1,7 @@
 import { SchematicEngine, UnsuccessfulWorkflowExecution } from '@angular-devkit/schematics';
 import { NodeModulesTestEngineHost } from '@angular-devkit/schematics/tools';
+import * as path from 'path';
+import * as fs from 'fs-extra';
 
 interface SchematicRunOptions {
     schematic: string;
@@ -10,10 +12,48 @@ interface SchematicRunOptions {
 export class SchematicsCli {
     private engineHost = new NodeModulesTestEngineHost();
     private engine: SchematicEngine<{}, {}>;
-    private collectionName = './schematics/collection.json'; // Relative path to collection
+    private collectionName: string;
 
     constructor() {
         this.engine = new SchematicEngine(this.engineHost);
+        this.collectionName = this.resolveCollectionPath();
+    }
+
+    /**
+     * Resolve the path to collection.json file
+     * First checks if running from source or from published package
+     */
+    private resolveCollectionPath(): string {
+        const possiblePaths = [
+            // When running from source via ts-node
+            path.resolve(__dirname, './schematics/collection.json'),
+            
+            // When running from dist folder
+            path.resolve(__dirname, '../src/schematics/collection.json'),
+            
+            // When installed as package
+            path.resolve(process.cwd(), './node_modules/vss-ol-cli/dist/schematics/collection.json'),
+            
+            // When in development, use local path
+            path.resolve(process.cwd(), './src/schematics/collection.json')
+        ];
+
+        for (const collectionPath of possiblePaths) {
+            try {
+                if (fs.existsSync(collectionPath)) {
+                    console.log(`Using collection at: ${collectionPath}`);
+                    return collectionPath;
+                }
+            } catch (err) {
+                // Skip if path doesn't exist
+            }
+        }
+
+        // If collection not found in any path, use a default path
+        // The error will be reported later when trying to load the collection
+        console.warn(`Warning: Could not find collection.json in any of the expected paths.`);
+        // Make sure we always return a string (fix TypeScript error)
+        return path.resolve(__dirname, './schematics/collection.json');
     }
 
     private parseSchematicArgs(args: string[]): Record<string, any> {
