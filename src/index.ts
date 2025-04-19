@@ -20,19 +20,30 @@ function displayWelcomeMessage(action: string, description?: string): void {
  | |_| | | (_) | | | | | | | | (_| | | | | | | |   | |___  | |___   | | 
  |____/   \\___/  |_| |_| |_|  \\__,_| |_| |_| |_|    \\____| |_____| |___|
                                                                         `;
+  
+  // CLI name with enhanced styling
+  const cliName = `
+\x1b[1m\x1b[36m██╗   ██╗███████╗███████╗      ██████╗ ██╗         ██████╗██╗     ██╗\x1b[0m
+\x1b[1m\x1b[36m██║   ██║██╔════╝██╔════╝     ██╔═══██╗██║        ██╔════╝██║     ██║\x1b[0m
+\x1b[1m\x1b[36m██║   ██║███████╗███████╗     ██║   ██║██║        ██║     ██║     ██║\x1b[0m
+\x1b[1m\x1b[36m╚██╗ ██╔╝╚════██║╚════██║     ██║   ██║██║        ██║     ██║     ██║\x1b[0m
+\x1b[1m\x1b[36m ╚████╔╝ ███████║███████║     ╚██████╔╝███████╗   ╚██████╗███████╗██║\x1b[0m
+\x1b[1m\x1b[36m  ╚═══╝  ╚══════╝╚══════╝      ╚═════╝ ╚══════╝    ╚═════╝╚══════╝╚═╝\x1b[0m`;
 
   // Clear any previous output
   console.clear();
   
   // Display ASCII art
   console.log(asciiArt);
+  
+  // Display styled CLI name
+  console.log(cliName);
   console.log();
   
   // Display action and description
-  console.log(`\x1b[1mvss-ol-cli\x1b[0m`); // Bold text
-  console.log(action);
+  console.log(`\x1b[1m\x1b[33m>> ${action}\x1b[0m`); // Bold yellow text for action
   if (description) {
-    console.log(description);
+    console.log(`\x1b[90m${description}\x1b[0m`); // Gray text for description
   }
   console.log(); // Add some spacing
 }
