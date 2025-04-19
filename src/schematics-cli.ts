@@ -117,7 +117,7 @@ export class SchematicsCli {
         workflow.reporter.subscribe((event) => {
             if (event.kind === 'error') {
                 const desc = event.description || 'No description provided';
-                this.logger.error(`ERROR! ${event.path} ${desc}`);
+                this.logger.error(`\x1b[31mERROR!\x1b[0m ${event.path} ${desc}`);
                 return;
             }
 
@@ -126,17 +126,17 @@ export class SchematicsCli {
 
             switch (event.kind) {
                 case 'update':
-                    this.logger.info(`UPDATE ${eventPath} (${event.content.length} bytes)`);
+                    this.logger.info(`\x1b[33mUPDATE\x1b[0m ${eventPath} (${event.content.length} bytes)`);
                     break;
                 case 'create':
-                    this.logger.info(`CREATE ${eventPath} (${event.content.length} bytes)`);
+                    this.logger.info(`\x1b[35mCREATE\x1b[0m ${eventPath} (${event.content.length} bytes)`);
                     break;
                 case 'delete':
-                    this.logger.info(`DELETE ${eventPath}`);
+                    this.logger.info(`\x1b[31mDELETE\x1b[0m ${eventPath}`);
                     break;
                 case 'rename':
                     const toPath = event.to.startsWith('/') ? event.to.slice(1) : event.to;
-                    this.logger.info(`RENAME ${eventPath} => ${toPath}`);
+                    this.logger.info(`\x1b[34mRENAME\x1b[0m ${eventPath} => ${toPath}`);
                     break;
                 default:
                     break;

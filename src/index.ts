@@ -14,14 +14,20 @@ import { createServiceCommand } from './commands/createService';
  */
 function displayWelcomeMessage(action: string, description?: string): void {
   const asciiArt = `
-  // CLI name with enhanced styling
+  ____                                _              ____   _       ___ 
+ |  _ \\    ___    _ __ ___     __ _  (_)  _ __      / ___| | |     |_ _|
+ | | | |  / _ \\  | '_ \` _ \\   / _\` | | | | '_ \\    | |     | |      | | 
+ | |_| | | (_) | | | | | | | | (_| | | | | | | |   | |___  | |___   | | 
+ |____/   \\___/  |_| |_| |_|  \\__,_| |_| |_| |_|    \\____| |_____| |___|
+                                                                        `;
+  
+  // CLI name with corrected ASCII art to show "VSS OL CLI"
   const cliName = `
-\x1b[1m\x1b[36m██╗   ██╗███████╗███████╗      ██████╗ ██╗         ██████╗██╗     ██╗\x1b[0m
-\x1b[1m\x1b[36m██║   ██║██╔════╝██╔════╝     ██╔═══██╗██║        ██╔════╝██║     ██║\x1b[0m
-\x1b[1m\x1b[36m██║   ██║███████╗███████╗     ██║   ██║██║        ██║     ██║     ██║\x1b[0m
-\x1b[1m\x1b[36m╚██╗ ██╔╝╚════██║╚════██║     ██║   ██║██║        ██║     ██║     ██║\x1b[0m
-\x1b[1m\x1b[36m ╚████╔╝ ███████║███████║     ╚██████╔╝███████╗   ╚██████╗███████╗██║\x1b[0m
-\x1b[1m\x1b[36m  ╚═══╝  ╚══════╝╚══════╝      ╚═════╝ ╚══════╝    ╚═════╝╚══════╝╚═╝\x1b[0m`;
+ __     __  _____ ___     ___  _        _____ _     ___ 
+ \\ \\   / / / ____/ _ \\   / _ \\| |      / ____| |   |_ _|
+  \\ \\ / /  \\___ \\ | | | | | | | |     | |    | |    | | 
+   \\ V /    ___) | |_| | | |_| | |___  | |___ | |___ | | 
+    \\_/    |____/ \\___/   \\___/|_____|  \\____/|_____|___|`;
 
   // Clear any previous output
   console.clear();
@@ -30,13 +36,13 @@ function displayWelcomeMessage(action: string, description?: string): void {
   console.log(asciiArt);
   
   // Display styled CLI name
-  console.log(cliName);
+  console.log("\x1b[36m" + cliName + "\x1b[0m");
   console.log();
   
   // Display action and description
-  console.log(`\x1b[1m\x1b[33m>> ${action}\x1b[0m`); // Bold yellow text for action
+  console.log("\x1b[1m\x1b[33m>> " + action + "\x1b[0m"); // Bold yellow text for action
   if (description) {
-    console.log(`\x1b[90m${description}\x1b[0m`); // Gray text for description
+    console.log("\x1b[90m" + description + "\x1b[0m"); // Gray text for description
   }
   console.log(); // Add some spacing
 }

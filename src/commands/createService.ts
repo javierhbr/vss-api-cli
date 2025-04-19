@@ -19,15 +19,37 @@ async function findExistingDomains(): Promise<string[]> {
     }
 }
 
+/**
+ * Generate a preview tree of files that will be created for a service
+ */
+function generateFilePreview(options: {
+  name: string,
+  domain: string,
+  path?: string
+}): string {
+  const { name, domain, path: outputPath = '' } = options;
+  const serviceName = toPascalCase(name);
+  const domainName = toCamelCase(domain);
+  const basePath = outputPath ? `${outputPath}/` : '';
+  
+  let preview = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
+  preview += `\x1b[36m${basePath}src/${domainName}/services/\x1b[0m\n`;
+  preview += `\x1b[32m└── ${serviceName}Service.ts\x1b[0m \x1b[90m- Service implementation\x1b[0m\n`;
+  
+  return preview;
+}
+
 export function createServiceCommand(): Command {
     const command = new Command('create:service')
         .alias('cs')
         .description('Generate a new domain service.')
-        .argument('<n>', 'Name of the service (e.g., UserFinder, PaymentProcessor)')
+        .argument('<n>', 'Service name (e.g., UserCreator, ProductFinder)')
         .option('-d, --domain <domainName>', 'Specify the domain name')
         .option('-p, --path <outputPath>', 'Specify a custom output path')
+        .option('-y, --yes', 'Skip prompts and use default options')
         .action(async (name, options) => {
             let domainName = options.domain;
+            let proceed = options.yes;
 
             const existingDomains = await findExistingDomains();
 
@@ -53,17 +75,41 @@ export function createServiceCommand(): Command {
             domainName = toCamelCase(domainName);
             const serviceName = toPascalCase(name);
 
-            // Use the service schematic instead of file templates
-            try {
-                console.log(`Generating service ${serviceName}Service for domain ${domainName}...`);
-                await runSchematic('service', {
-                    name: serviceName,
-                    domain: domainName,
-                    path: options.path || '' // Pass the output path if specified
-                });
-                console.log('Service created successfully!');
-            } catch (error) {
-                console.error('Failed to create service:', error);
+            // Generate options for the schematic
+            const schematicOptions = {
+                name: serviceName,
+                domain: domainName,
+                path: options.path || ''
+            };
+            
+            // Generate and show file preview
+            const filePreview = generateFilePreview(schematicOptions);
+            console.log(filePreview);
+            
+            // Ask for confirmation unless --yes flag is used
+            if (!options.yes) {
+                const confirmAnswer = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'proceed',
+                        message: 'Do you want to create these files?',
+                        default: true,
+                    }
+                ]);
+                proceed = confirmAnswer.proceed;
+            }
+
+            // Proceed with file generation if confirmed
+            if (proceed) {
+                try {
+                    console.log(`\nGenerating service ${serviceName}Service for domain ${domainName}...`);
+                    await runSchematic('service', schematicOptions);
+                    console.log('\x1b[32m✓\x1b[0m Service created successfully!');
+                } catch (error) {
+                    console.error('\x1b[31m✗\x1b[0m Failed to create service:', error);
+                }
+            } else {
+                console.log('\nOperation cancelled. No files were created.');
             }
         });
 

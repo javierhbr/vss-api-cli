@@ -1,7 +1,56 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
-import { toCamelCase, toPascalCase } from '../utils/fileUtils';
+import { toCamelCase, toPascalCase, capitalizeFirstLetter } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
+
+/**
+ * Generate a preview tree of files that will be created
+ * @param options Domain options including name, path, and components to create
+ * @returns A formatted string representing the file tree
+ */
+function generateFilePreview(options: {
+  name: string,
+  path?: string,
+  model?: boolean,
+  service?: boolean,
+  port?: boolean,
+  adapterType?: string
+}): string {
+  const { name, path: outputPath = '', model = true, service = true, port = true, adapterType = 'repository' } = options;
+  const domainName = toCamelCase(name);
+  const pascalName = toPascalCase(domainName);
+  const basePath = outputPath ? `${outputPath}/` : '';
+  
+  let preview = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
+  preview += `\x1b[36m${basePath}src/\x1b[0m\n`;
+  
+  if (model || service || port) {
+    preview += `\x1b[36m├── ${domainName}/\x1b[0m\n`;
+    
+    if (model) {
+      preview += `\x1b[36m│   ├── models/\x1b[0m\n`;
+      preview += `\x1b[32m│   │   └── ${pascalName}.ts\x1b[0m \x1b[90m- Domain model\x1b[0m\n`;
+    }
+    
+    if (port) {
+      preview += `\x1b[36m│   ├── ports/\x1b[0m\n`;
+      preview += `\x1b[32m│   │   └── ${pascalName}${capitalizeFirstLetter(adapterType)}Port.ts\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
+    }
+    
+    if (service) {
+      preview += `\x1b[36m│   └── services/\x1b[0m\n`;
+      preview += `\x1b[32m│       └── ${pascalName}Service.ts\x1b[0m \x1b[90m- Domain service implementation\x1b[0m\n`;
+    }
+  }
+  
+  if (port && adapterType !== 'none') {
+    preview += `\x1b[36m└── infra/\x1b[0m\n`;
+    preview += `\x1b[36m    └── ${adapterType}/\x1b[0m\n`;
+    preview += `\x1b[32m        └── ${pascalName}${capitalizeFirstLetter(adapterType)}Adapter.ts\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`;
+  }
+  
+  return preview;
+}
 
 export function createDomainCommand(): Command {
     const command = new Command('create:domain')
@@ -65,20 +114,45 @@ export function createDomainCommand(): Command {
                 ]);
             }
 
-            // Use the schematic approach for file generation
-            try {
-                console.log(`Generating domain ${domainName}...`);
-                await runSchematic('domain', {
-                    name: domainName,
-                    path: cmdOptions.path || '',
-                    model: answers.createModel,
-                    service: answers.createService,
-                    port: answers.createPort,
-                    adapterType: answers.adapterType || 'repository'
-                });
-                console.log('Domain created successfully!');
-            } catch (error) {
-                console.error('Failed to create domain:', error);
+            // Generate options for the schematic
+            const schematicOptions = {
+                name: domainName,
+                path: cmdOptions.path || '',
+                model: answers.createModel,
+                service: answers.createService,
+                port: answers.createPort,
+                adapterType: answers.adapterType || 'repository'
+            };
+
+            // Generate and show file preview
+            const filePreview = generateFilePreview(schematicOptions);
+            console.log(filePreview);
+
+            // Ask for confirmation unless --yes flag is used
+            let proceed = cmdOptions.yes;
+            if (!cmdOptions.yes) {
+                const confirmAnswer = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'proceed',
+                        message: 'Do you want to create these files?',
+                        default: true,
+                    }
+                ]);
+                proceed = confirmAnswer.proceed;
+            }
+
+            // Proceed with file generation if confirmed
+            if (proceed) {
+                try {
+                    console.log(`\nGenerating domain ${domainName}...`);
+                    await runSchematic('domain', schematicOptions);
+                    console.log('\x1b[32m✓\x1b[0m Domain created successfully!');
+                } catch (error) {
+                    console.error('\x1b[31m✗\x1b[0m Failed to create domain:', error);
+                }
+            } else {
+                console.log('\nOperation cancelled. No files were created.');
             }
         });
 
