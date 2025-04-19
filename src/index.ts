@@ -14,13 +14,6 @@ import { createServiceCommand } from './commands/createService';
  */
 function displayWelcomeMessage(action: string, description?: string): void {
   const asciiArt = `
-  ____                                _              ____   _       ___ 
- |  _ \\    ___    _ __ ___     __ _  (_)  _ __      / ___| | |     |_ _|
- | | | |  / _ \\  | '_ \` _ \\   / _\` | | | | '_ \\    | |     | |      | | 
- | |_| | | (_) | | | | | | | | (_| | | | | | | |   | |___  | |___   | | 
- |____/   \\___/  |_| |_| |_|  \\__,_| |_| |_| |_|    \\____| |_____| |___|
-                                                                        `;
-  
   // CLI name with enhanced styling
   const cliName = `
 \x1b[1m\x1b[36m██╗   ██╗███████╗███████╗      ██████╗ ██╗         ██████╗██╗     ██╗\x1b[0m
