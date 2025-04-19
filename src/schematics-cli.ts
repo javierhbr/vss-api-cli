@@ -94,19 +94,13 @@ export class SchematicsCli {
     }
 
     private createWorkflow(options: { dryRun: boolean, outputDir?: string }): NodeWorkflow {
-        const { dryRun, outputDir } = options;
+        const { dryRun } = options; // Remove unused outputDir variable
         
-        // Use output directory if provided, otherwise use current working directory
-        const root = normalize(outputDir ? path.resolve(process.cwd(), outputDir) : process.cwd());
+        // SIMPLE APPROACH: Just use the current working directory as root
+        // We'll handle the output directory later in the schematic itself
+        const root = normalize(process.cwd());
         
-        // Ensure output directory exists
-        if (outputDir) {
-            const dirPath = path.resolve(process.cwd(), outputDir);
-            if (!fs.existsSync(dirPath)) {
-                this.logger.info(`Creating output directory: ${dirPath}`);
-                fs.mkdirpSync(dirPath);
-            }
-        }
+        this.logger.info(`Using workflow root: ${root}`);
         
         const workflow = new NodeWorkflow(root, {
             dryRun,
@@ -229,19 +223,30 @@ export async function runSchematic(
 ): Promise<void> {
     const cli = new SchematicsCli();
     
-    // Convert options object to CLI args array format
-    const schematicArgs = Object.entries(options).map(([key, value]) => {
+    // Fix the option parsing to properly separate keys and values
+    const schematicArgs: string[] = [];
+    
+    // Extract name separately since it's a special case
+    const { name, ...restOptions } = options;
+    
+    // Process the rest of the options
+    Object.entries(restOptions).forEach(([key, value]) => {
         if (typeof value === 'boolean') {
-            return value ? `--${key}` : ''; // Only include flag if true
+            if (value) {
+                schematicArgs.push(`--${key}`);
+            }
+        } else if (value !== undefined && value !== null && value !== '') {
+            schematicArgs.push(`--${key}`);
+            schematicArgs.push(value.toString());
         }
-        return `--${key}=${value}`;
-    }).filter(Boolean); // Remove empty strings
+    });
     
     try {
         await cli.run({ 
             schematic: schematicName,
-            name: options.name,
+            name, // Pass name separately
             options: schematicArgs,
+            outputDir: options.path, // Make sure path is passed as outputDir
             dryRun
         });
     } catch (error) {

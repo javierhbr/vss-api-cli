@@ -30,6 +30,12 @@ Or use the shorthand alias:
 vss-ol-cli g <schematic> [name] [options]
 ```
 
+You can also use the specific creation commands:
+
+```bash
+vss-ol-cli create:<component> <name> [options]
+```
+
 ## Available Schematics
 
 ### Handler Generator
@@ -37,18 +43,18 @@ vss-ol-cli g <schematic> [name] [options]
 Creates a new Middy handler with optional schema validation.
 
 ```bash
-vss-ol-cli g handler <name> [options]
+vss-ol-cli create:handler <name> [options]
 # or
-vss-ol-cli generate handler <name> [options]
+vss-ol-cli ch <name> [options]
 ```
 
 **Options:**
 - `--schema` (`-s`): Generate a Zod schema file for input validation
-- `--path`: Specify a custom output path (default: `src/handlers`)
+- `--path <outputPath>`: Specify a custom output path (default: `src/handlers`)
 
 **Example:**
 ```bash
-vss-ol-cli g handler createUser --schema
+vss-ol-cli create:handler createUser --schema
 ```
 
 This creates:
@@ -60,101 +66,137 @@ This creates:
 Creates a new domain with models, services, and ports.
 
 ```bash
-vss-ol-cli g domain <name> [options]
+vss-ol-cli create:domain <domainName> [options]
 # or
-vss-ol-cli generate domain <name> [options]
+vss-ol-cli cd <domainName> [options]
 ```
 
 **Options:**
-- `--model`: Generate a domain model file (default: true)
-- `--service`: Generate a domain service file (default: true)
-- `--port`: Generate a domain port interface and its adapter (default: true)
-- `--adapterType`: The type of adapter for the port (options: repository, rest, graphql, none; default: repository)
-- `--path`: Specify a custom output path (default: `src/<domainName>`)
+- `--path <outputPath>`: Specify a custom output path (default: `src/<domainName>`)
+- `--yes`: Skip prompts and use default options (useful for scripting)
+- `--no-model`: Skip model generation
+- `--no-service`: Skip service generation
+- `--no-port`: Skip port generation
+- `--adapter-type <type>`: The type of adapter for the port (options: repository, rest, graphql, none; default: repository)
 
 **Example:**
 ```bash
-vss-ol-cli g domain user --adapterType=rest
+# Interactive mode
+vss-ol-cli create:domain user
+  
+# Non-interactive with custom path
+vss-ol-cli create:domain payments --path custom-output --yes
+  
+# Custom options
+vss-ol-cli create:domain product --adapter-type=rest --no-model
 ```
 
 This creates:
-- `src/user/models/User.ts`
-- `src/user/ports/UserRestPort.ts`
-- `src/infra/rest/UserRestAdapter.ts`
-- `src/user/services/UserService.ts`
+- `<outputPath>/src/<domainName>/models/<DomainName>.ts`
+- `<outputPath>/src/<domainName>/ports/<DomainName><AdapterType>Port.ts`
+- `<outputPath>/src/infra/<adapterType>/<DomainName><AdapterType>Adapter.ts`
+- `<outputPath>/src/<domainName>/services/<DomainName>Service.ts`
 
 ### Port Generator
 
 Creates a new port interface in a domain and its adapter implementation.
 
 ```bash
-vss-ol-cli g port <name> [options]
+vss-ol-cli create:port <name> [options]
 # or
-vss-ol-cli generate port <name> [options]
+vss-ol-cli cp <name> [options]
 ```
 
 **Options:**
 - `--domain` (`-d`): The domain this port belongs to
 - `--adapterType` (`-t`): The type of adapter that will implement this port (options: repository, rest, graphql; default: repository)
-- `--path`: Specify a custom output path
+- `--path <outputPath>`: Specify a custom output path
 
 **Example:**
 ```bash
-vss-ol-cli g port UserFinder -d user -t repository
+vss-ol-cli create:port UserFinder -d user -t repository
 ```
 
 This creates:
-- `src/user/ports/UserFinderPort.ts`
-- `src/infra/repository/UserFinderAdapter.ts`
+- `<outputPath>/src/user/ports/UserFinderPort.ts`
+- `<outputPath>/src/infra/repository/UserFinderAdapter.ts`
 
 ### Service Generator
 
 Creates a new domain service.
 
 ```bash
-vss-ol-cli g service <name> [options]
+vss-ol-cli create:service <name> [options]
 # or
-vss-ol-cli generate service <name> [options]
+vss-ol-cli cs <name> [options]
 ```
 
 **Options:**
 - `--domain` (`-d`): Specify the domain name the service belongs to
+- `--path <outputPath>`: Specify a custom output path
 
 **Example:**
 ```bash
-vss-ol-cli g service UserCreator -d user
+vss-ol-cli create:service UserCreator -d user
 ```
 
 This creates:
-- `src/user/services/UserCreatorService.ts`
+- `<outputPath>/src/user/services/UserCreatorService.ts`
 
 ## Interactive Prompts
 
-If you don't specify required options, the CLI will prompt you for the needed information interactively.
+If you don't specify required options, the CLI will prompt you for the needed information interactively. For automated workflows, you can use the `--yes` flag to skip prompts and use default values.
 
-## Project Structure
+## Generated Project Structure
 
 The CLI generates files following this structure:
 
 ```
-src/
-├── handlers/
-│   ├── createUser.handler.ts
-│   └── createUserSchema.ts
-├── <domain>/
-│   ├── models/
-│   │   └── <Model>.ts
-│   ├── ports/
-│   │   └── <Model><AdapterType>Port.ts
-│   └── services/
-│       └── <Model>Service.ts
-└── infra/
-    ├── repository/
-    │   └── <Model>RepositoryAdapter.ts
-    ├── rest/
-    │   └── <Model>RestAdapter.ts
-    └── graphql/
-        └── <Model>GraphqlAdapter.ts
+<outputPath>/
+└── src/
+    ├── handlers/
+    │   ├── createUser.handler.ts
+    │   └── createUserSchema.ts
+    ├── <domain>/
+    │   ├── models/
+    │   │   └── <Model>.ts
+    │   ├── ports/
+    │   │   └── <Model><AdapterType>Port.ts
+    │   └── services/
+    │       └── <Model>Service.ts
+    └── infra/
+        ├── repository/
+        │   └── <Model>RepositoryAdapter.ts
+        ├── rest/
+        │   └── <Model>RestAdapter.ts
+        └── graphql/
+            └── <Model>GraphqlAdapter.ts
+```
+
+All generated code follows a consistent structure that adheres to hexagonal architecture principles, with clear separation between domain logic and infrastructure concerns.
+
+## Path Handling
+
+When specifying a custom output path with the `--path` option, all generated files will be placed under the specified directory, maintaining the correct folder structure:
+
+```bash
+vss-ol-cli create:domain payments --path test-output --yes
+```
+
+Will create:
+```
+test-output/
+└── src/
+    ├── payments/
+    │   ├── models/
+    │   │   └── Payments.ts
+    │   ├── ports/
+    │   │   └── PaymentsRepositoryPort.ts
+    │   └── services/
+    │       └── PaymentsService.ts
+    └── infra/
+        └── repository/
+            └── PaymentsRepositoryAdapter.ts
 ```
 
 ## Contributing
