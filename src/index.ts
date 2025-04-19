@@ -13,29 +13,18 @@ import { createServiceCommand } from './commands/createService';
  * @param description Description of what will happen
  */
 function displayWelcomeMessage(action: string, description?: string): void {
-  const asciiArt = `
-  ____                                _              ____   _       ___ 
- |  _ \\    ___    _ __ ___     __ _  (_)  _ __      / ___| | |     |_ _|
- | | | |  / _ \\  | '_ \` _ \\   / _\` | | | | '_ \\    | |     | |      | | 
- | |_| | | (_) | | | | | | | | (_| | | | | | | |   | |___  | |___   | | 
- |____/   \\___/  |_| |_| |_|  \\__,_| |_| |_| |_|    \\____| |_____| |___|
-                                                                        `;
-  
   // CLI name with corrected ASCII art to show "VSS OL CLI"
   const cliName = `
- __     __  _____ ___     ___  _        _____ _     ___ 
- \\ \\   / / / ____/ _ \\   / _ \\| |      / ____| |   |_ _|
-  \\ \\ / /  \\___ \\ | | | | | | | |     | |    | |    | | 
-   \\ V /    ___) | |_| | | |_| | |___  | |___ | |___ | | 
-    \\_/    |____/ \\___/   \\___/|_____|  \\____/|_____|___|`;
+ __     __  ____    ____         _      ____    ___      ____   _       ___ 
+\ \   / / / ___|  / ___|       / \    |  _ \  |_ _|    / ___| | |     |_ _|
+ \ \ / /  \___ \  \___ \      / _ \   | |_) |  | |    | |     | |      | | 
+  \ V /    ___) |  ___) |    / ___ \  |  __/   | |    | |___  | |___   | | 
+   \_/    |____/  |____/    /_/   \_\ |_|     |___|    \____| |_____| |___|`;
 
   // Clear any previous output
   console.clear();
   
-  // Display ASCII art
-  console.log(asciiArt);
-  
-  // Display styled CLI name
+  // Display styled CLI name (remove any previous ASCII art)
   console.log("\x1b[36m" + cliName + "\x1b[0m");
   console.log();
   
