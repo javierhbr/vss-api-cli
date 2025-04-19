@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/schema",
-  "id": "SchematicsNestPort",
+  "$id": "SchematicsNestPort",
   "title": "Nest Port Options Schema",
   "type": "object",
   "properties": {
