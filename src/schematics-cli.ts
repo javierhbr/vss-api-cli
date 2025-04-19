@@ -1,5 +1,15 @@
-import { SchematicEngine, UnsuccessfulWorkflowExecution } from '@angular-devkit/schematics';
-import { NodeModulesTestEngineHost } from '@angular-devkit/schematics/tools';
+import { 
+    SchematicEngine,
+    UnsuccessfulWorkflowExecution,
+    formats
+} from '@angular-devkit/schematics';
+import {
+    NodeModulesTestEngineHost,
+    NodeWorkflow
+} from '@angular-devkit/schematics/tools';
+import { 
+    normalize
+} from '@angular-devkit/core';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
@@ -7,12 +17,14 @@ interface SchematicRunOptions {
     schematic: string;
     name?: string;
     options: string[]; // Raw CLI arguments for the schematic
+    dryRun?: boolean;
 }
 
 export class SchematicsCli {
     private engineHost = new NodeModulesTestEngineHost();
     private engine: SchematicEngine<{}, {}>;
     private collectionName: string;
+    private logger = console;
 
     constructor() {
         this.engine = new SchematicEngine(this.engineHost);
@@ -30,6 +42,9 @@ export class SchematicsCli {
             
             // When running from dist folder
             path.resolve(__dirname, '../src/schematics/collection.json'),
+            
+            // When running from dist folder (alternative)
+            path.resolve(__dirname, './schematics/collection.json'),
             
             // When installed as package
             path.resolve(process.cwd(), './node_modules/vss-ol-cli/dist/schematics/collection.json'),
@@ -77,8 +92,55 @@ export class SchematicsCli {
         return options;
     }
 
+    private createWorkflow(options: { dryRun: boolean }): NodeWorkflow {
+        const { dryRun } = options;
+        const root = normalize(process.cwd());
+        const workflow = new NodeWorkflow(root, {
+            dryRun,
+            resolvePaths: [process.cwd(), __dirname],
+            schemaValidation: true,
+        });
+
+        // Register standard formats - proper TypeScript syntax
+        for (const format of formats.standardFormats) {
+            workflow.registry.addFormat(format);
+        }
+        
+        // Add reporting logic for file operations
+        workflow.reporter.subscribe((event) => {
+            if (event.kind === 'error') {
+                const desc = event.description || 'No description provided';
+                this.logger.error(`ERROR! ${event.path} ${desc}`);
+                return;
+            }
+
+            // Format paths consistently
+            const eventPath = event.path.startsWith('/') ? event.path.slice(1) : event.path;
+
+            switch (event.kind) {
+                case 'update':
+                    this.logger.info(`UPDATE ${eventPath} (${event.content.length} bytes)`);
+                    break;
+                case 'create':
+                    this.logger.info(`CREATE ${eventPath} (${event.content.length} bytes)`);
+                    break;
+                case 'delete':
+                    this.logger.info(`DELETE ${eventPath}`);
+                    break;
+                case 'rename':
+                    const toPath = event.to.startsWith('/') ? event.to.slice(1) : event.to;
+                    this.logger.info(`RENAME ${eventPath} => ${toPath}`);
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        return workflow;
+    }
+
     async run(runOptions: SchematicRunOptions): Promise<void> {
-        const { schematic, name, options: rawOptions } = runOptions;
+        const { schematic: schematicName, name, options: rawOptions, dryRun = false } = runOptions;
 
         const parsedOptions = this.parseSchematicArgs(rawOptions);
         if (name) {
@@ -89,30 +151,48 @@ export class SchematicsCli {
             // Create collection
             const collection = this.engine.createCollection(this.collectionName);
             
-            // Check if schematic exists by trying to create it - will throw if not found
             try {
-                console.log(`Executing schematic: ${schematic}`);
-                // Just verify schematic exists - don't store in a variable to avoid unused var warnings
-                collection.createSchematic(schematic, true);
+                // Check if schematic exists (don't store the return value to avoid unused var warnings)
+                collection.createSchematic(schematicName, true);
                 
-                // For display purposes only - show what options we parsed
-                console.log(`Options: ${JSON.stringify(parsedOptions)}`);
+                // Set up workflow for the actual file system operations
+                const workflow = this.createWorkflow({ dryRun });
+
+                this.logger.info(`Executing schematic: ${schematicName}`);
+                this.logger.info(`Options: ${JSON.stringify(parsedOptions)}`);
                 
-                // With limited API access, we'll just indicate success
-                // In a complete implementation, we would apply the rule to a tree
-                console.log(`Schematic ${schematic} successfully initialized.`);
-                console.log(`Note: This is a simplified implementation that doesn't actually run the schematics.`);
-                console.log(`Generated files should be available in the project.`);
-                
-                return Promise.resolve();
+                if (dryRun) {
+                    this.logger.info('Running in dry-run mode - no changes will be made to the filesystem');
+                }
+
+                // Execute the schematic with proper workflow
+                return new Promise<void>((resolve, reject) => {
+                    workflow.execute({
+                        collection: this.collectionName,
+                        schematic: schematicName,
+                        options: parsedOptions,
+                    }).subscribe({
+                        next: () => {
+                            // Processing tree transformations
+                        },
+                        error: (error) => {
+                            this.logger.error(`Error executing schematic: ${error.message}`);
+                            reject(error);
+                        },
+                        complete: () => {
+                            this.logger.info(`Schematic ${schematicName} executed successfully.`);
+                            resolve();
+                        }
+                    });
+                });
             } catch (error) {
-                throw new Error(`Schematic '${schematic}' not found in collection '${this.collectionName}' or is invalid.`);
+                throw new Error(`Schematic '${schematicName}' not found in collection '${this.collectionName}' or is invalid.`);
             }
         } catch (err) {
             if (err instanceof UnsuccessfulWorkflowExecution) {
-                console.error('The Schematic workflow failed. See above.');
+                this.logger.error('The Schematic workflow failed. See above.');
             } else {
-                console.error(`Error: ${(err as Error).message}`);
+                this.logger.error(`Error: ${(err as Error).message}`);
             }
             throw err; // Re-throw for the main index.ts to catch
         }
