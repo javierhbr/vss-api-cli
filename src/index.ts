@@ -2,6 +2,10 @@
 
 import { Command } from 'commander';
 import { SchematicsCli } from './schematics-cli'; // We'll create this helper
+import { createDomainCommand } from './commands/createDomain';
+import { createHandlerCommand } from './commands/createHandler';
+import { createPortCommand } from './commands/createPort';
+import { createServiceCommand } from './commands/createService';
 
 async function main() {
   const program = new Command();
@@ -17,18 +21,21 @@ async function main() {
     .alias('g')
     .description('Generate a specific schematic (handler, domain, port, service)')
     .option('--dry-run', 'Run through without making any changes')
+    .option('--output-dir <path>', 'Specify output directory for generated code (default: current directory)')
     .allowUnknownOption() // Allow schematics-specific options
-    .action(async (schematic: string, name: string | undefined, cmdOptions: { dryRun?: boolean }) => {
+    .action(async (schematic: string, name: string | undefined, cmdOptions: { dryRun?: boolean, outputDir?: string }) => {
       const cli = new SchematicsCli();
       const schematicArgs = process.argv.slice(process.argv.indexOf(name || schematic) + 1)
-        .filter(arg => arg !== '--dry-run'); // Remove dry-run from schematic args
+        .filter(arg => arg !== '--dry-run')
+        .filter(arg => arg !== '--output-dir' && !process.argv[process.argv.indexOf(arg) - 1]?.includes('--output-dir'));
 
       try {
         await cli.run({ 
           schematic, 
           name, 
           options: schematicArgs,
-          dryRun: cmdOptions.dryRun
+          dryRun: cmdOptions.dryRun,
+          outputDir: cmdOptions.outputDir
         });
       } catch (error) {
         console.error('Error running schematic:', error);
@@ -36,38 +43,11 @@ async function main() {
       }
     });
 
-  // Add direct commands for common schematics
-  const createCommand = (name: string) => {
-    return program
-      .command(`create:${name} <name>`)
-      .alias(`c${name.charAt(0)}`)
-      .description(`Generate a new ${name}`)
-      .option('--dry-run', 'Run through without making any changes')
-      .allowUnknownOption()
-      .action(async (componentName: string, cmdOptions: { dryRun?: boolean }) => {
-        const cli = new SchematicsCli();
-        const schematicArgs = process.argv.slice(process.argv.indexOf(componentName) + 1)
-          .filter(arg => arg !== '--dry-run');
-
-        try {
-          await cli.run({ 
-            schematic: name, 
-            name: componentName, 
-            options: schematicArgs,
-            dryRun: cmdOptions.dryRun
-          });
-        } catch (error) {
-          console.error(`Error generating ${name}:`, error);
-          process.exit(1);
-        }
-      });
-  };
-
-  // Add convenience commands
-  createCommand('domain');   // create:domain <name>
-  createCommand('handler');  // create:handler <name>
-  createCommand('port');     // create:port <name>
-  createCommand('service');  // create:service <name>
+  // Add our custom command implementations
+  program.addCommand(createDomainCommand());
+  program.addCommand(createHandlerCommand());
+  program.addCommand(createPortCommand());
+  program.addCommand(createServiceCommand());
 
   await program.parseAsync(process.argv);
 

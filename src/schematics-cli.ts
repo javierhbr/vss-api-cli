@@ -18,6 +18,7 @@ interface SchematicRunOptions {
     name?: string;
     options: string[]; // Raw CLI arguments for the schematic
     dryRun?: boolean;
+    outputDir?: string; // Optional output directory for generated code
 }
 
 export class SchematicsCli {
@@ -92,9 +93,21 @@ export class SchematicsCli {
         return options;
     }
 
-    private createWorkflow(options: { dryRun: boolean }): NodeWorkflow {
-        const { dryRun } = options;
-        const root = normalize(process.cwd());
+    private createWorkflow(options: { dryRun: boolean, outputDir?: string }): NodeWorkflow {
+        const { dryRun, outputDir } = options;
+        
+        // Use output directory if provided, otherwise use current working directory
+        const root = normalize(outputDir ? path.resolve(process.cwd(), outputDir) : process.cwd());
+        
+        // Ensure output directory exists
+        if (outputDir) {
+            const dirPath = path.resolve(process.cwd(), outputDir);
+            if (!fs.existsSync(dirPath)) {
+                this.logger.info(`Creating output directory: ${dirPath}`);
+                fs.mkdirpSync(dirPath);
+            }
+        }
+        
         const workflow = new NodeWorkflow(root, {
             dryRun,
             resolvePaths: [process.cwd(), __dirname],
@@ -140,11 +153,17 @@ export class SchematicsCli {
     }
 
     async run(runOptions: SchematicRunOptions): Promise<void> {
-        const { schematic: schematicName, name, options: rawOptions, dryRun = false } = runOptions;
+        const { schematic: schematicName, name, options: rawOptions, dryRun = false, outputDir } = runOptions;
 
         const parsedOptions = this.parseSchematicArgs(rawOptions);
         if (name) {
             parsedOptions.name = name; // Add the positional name argument
+        }
+
+        // Add path option if outputDir is provided
+        if (outputDir) {
+            this.logger.info(`Using output directory: ${outputDir}`);
+            parsedOptions.path = outputDir;
         }
 
         try {
@@ -156,7 +175,7 @@ export class SchematicsCli {
                 collection.createSchematic(schematicName, true);
                 
                 // Set up workflow for the actual file system operations
-                const workflow = this.createWorkflow({ dryRun });
+                const workflow = this.createWorkflow({ dryRun, outputDir });
 
                 this.logger.info(`Executing schematic: ${schematicName}`);
                 this.logger.info(`Options: ${JSON.stringify(parsedOptions)}`);
@@ -196,5 +215,37 @@ export class SchematicsCli {
             }
             throw err; // Re-throw for the main index.ts to catch
         }
+    }
+}
+
+/**
+ * Helper function to run a schematic with the given options.
+ * This simplifies schematic execution from command files.
+ */
+export async function runSchematic(
+    schematicName: string, 
+    options: Record<string, any> = {},
+    dryRun: boolean = false
+): Promise<void> {
+    const cli = new SchematicsCli();
+    
+    // Convert options object to CLI args array format
+    const schematicArgs = Object.entries(options).map(([key, value]) => {
+        if (typeof value === 'boolean') {
+            return value ? `--${key}` : ''; // Only include flag if true
+        }
+        return `--${key}=${value}`;
+    }).filter(Boolean); // Remove empty strings
+    
+    try {
+        await cli.run({ 
+            schematic: schematicName,
+            name: options.name,
+            options: schematicArgs,
+            dryRun
+        });
+    } catch (error) {
+        console.error(`Error executing schematic ${schematicName}:`, error);
+        throw error;
     }
 }

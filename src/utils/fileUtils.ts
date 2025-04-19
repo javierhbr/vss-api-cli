@@ -66,3 +66,16 @@ export function toPascalCase(str: string): string {
     const camelCase = toCamelCase(str);
     return capitalizeFirstLetter(camelCase);
 }
+
+/**
+ * Converts a string to dash-case (kebab-case).
+ * Example: "UserPayment" becomes "user-payment"
+ */
+export function toDasherize(str: string): string {
+    // First convert to camelCase to handle various input formats
+    const camelCase = toCamelCase(str);
+    // Then convert camelCase to dash-case
+    return camelCase
+        .replace(/([a-z])([A-Z])/g, '$1-$2')
+        .toLowerCase();
+}

@@ -1,0 +1,26 @@
+import { <%= portName %> } from '../../<%= domainName %>/ports/<%= portName %>';
+
+/**
+ * <%= adapterName %> - Implementation of <%= portName %>
+ */
+export class <%= adapterName %> implements <%= portName %> {
+  constructor() {
+    // Initialize adapter dependencies here (e.g., database connections)
+  }
+
+  // Implement the required port interface methods
+  async find(id: string): Promise<unknown> {
+    // Implementation for finding an entity
+    return {};
+  }
+
+  async save(entity: unknown): Promise<unknown> {
+    // Implementation for saving an entity
+    return entity;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    // Implementation for deleting an entity
+    return true;
+  }
+}

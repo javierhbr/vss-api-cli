@@ -1,16 +1,17 @@
-{{portImports}}
+/**
+ * {{serviceName}} - Service implementation for {{name}} operations
+ */
 {{modelImport}}
+{{portImports}}
 
-// Define your service logic here
-export class {{serviceName}}Service {
+export class {{serviceName}} {
   constructor(
     {{portDependencies}}
   ) {}
-
-  // Example service method
-  // public async performAction(data: {{modelName}}): Promise<ResultType> {
-  //   // Use injected ports and models
-  //   // await this.{{portName}}Port.somePortMethod(data.id);
-  //   return /* result */;
-  // }
+  
+  // Example method - customize as needed
+  async process{{classify(name)}}(data: any): Promise<{{modelName}}> {
+    // Implement business logic here
+    return {} as {{modelName}};
+  }
 }

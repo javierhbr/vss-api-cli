@@ -1,7 +1,7 @@
 import { strings } from '@angular-devkit/core';
 import {
   Rule, SchematicsException, apply, applyTemplates, chain,
-  mergeWith, move, url, Tree, SchematicContext
+  mergeWith, move, url, Tree, SchematicContext, filter
 } from '@angular-devkit/schematics';
 import { Schema as PortOptions } from './schema'; // Make sure schema.d.ts is generated
 import * as path from 'path';
@@ -21,26 +21,32 @@ export default function (options: PortOptions): Rule {
     const portNameRaw = options.name; // e.g., UserFinder
     const domainName = camelize(options.domain); // e.g., user
     const adapterType = options.adapterType ?? 'repository';
+    
+    // Handle custom output directory
+    const basePath = options.path || '';
 
     const portName = `${classify(portNameRaw)}Port`; // e.g., UserFinderPort
     const adapterName = `${classify(portNameRaw)}Adapter`; // e.g., UserFinderAdapter
 
-    const domainPath = `src/${domainName}`;
-    const infraPath = `src/infra/${adapterType}`;
+    const domainPath = path.join(basePath, `src/${domainName}`);
+    const infraPath = path.join(basePath, `src/infra/${adapterType}`);
 
     // --- Port Interface Generation ---
-    const portTemplateSource = apply(url('../domain/files/port'), [ // Reuse domain's port template
+    const portTemplateSource = apply(url('./files'), [
+      // Filter to only include port template file
+      filter(path => path.includes('__portName@classify__')),
       applyTemplates({
         ...strings,
         name: portNameRaw, // Pass the raw name for potential use
         portName: portName, // Pass the generated interface name
-        portInterfaceName: portName, // Keep consistent with domain schematic template vars
       }),
       move(path.join(domainPath, 'ports')),
     ]);
 
     // --- Adapter Implementation Generation ---
-    const adapterTemplateSource = apply(url('../domain/files/adapter'), [ // Reuse domain's adapter template
+    const adapterTemplateSource = apply(url('./files'), [
+      // Filter to only include adapter template file
+      filter(path => path.includes('__adapterName@classify__')),
       applyTemplates({
         ...strings,
         name: portNameRaw, // Pass the raw name
@@ -52,7 +58,10 @@ export default function (options: PortOptions): Rule {
     ]);
 
     // Check if domain exists (optional, but good practice)
-    if (!tree.exists(path.join(domainPath, 'models')) && !tree.exists(path.join(domainPath, 'services'))) {
+    const domainModelsPath = path.join(domainPath, 'models');
+    const domainServicesPath = path.join(domainPath, 'services');
+    
+    if (!tree.exists(domainModelsPath) && !tree.exists(domainServicesPath)) {
         context.logger.warn(`Domain '${domainName}' might not exist or is empty. Creating port/adapter anyway.`);
     }
 

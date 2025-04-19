@@ -12,7 +12,10 @@ const { classify, camelize } = strings;
 function generatePart(options: DomainOptions, part: 'model' | 'port' | 'adapter' | 'service'): Source {
   const domainName = camelize(options.name);
   const pascalName = classify(options.name);
-  const domainPath = options.path ?? `src/${domainName}`;
+  
+  // Fix: Use path directly if provided, otherwise use src/domainName
+  const basePath = options.path || 'src';
+  const domainPath = path.join(basePath, domainName);
   const adapterType = options.adapterType ?? 'repository';
 
   let templatePath = '';
@@ -37,7 +40,8 @@ function generatePart(options: DomainOptions, part: 'model' | 'port' | 'adapter'
       const adapterPortInterfaceName = `${adapterPortName}Port`;
       const adapterName = `${adapterPortName}Adapter`;
       templatePath = './files/adapter';
-      targetPath = path.join('src', 'infra', adapterType);
+      // Fix: For adapter, respect the base path correctly
+      targetPath = path.join(options.path ? basePath : 'src', 'infra', adapterType);
       templateOptions = { ...templateOptions, adapterName: adapterName, portName: adapterPortInterfaceName, domainName: domainName };
       break;
     case 'service':
@@ -60,6 +64,9 @@ function generatePart(options: DomainOptions, part: 'model' | 'port' | 'adapter'
     default:
       throw new SchematicsException(`Unknown domain part: ${part}`);
   }
+
+  // Add debug log to show where files will be created
+  console.log(`Generating ${part} files in: ${targetPath}`);
 
   return apply(url(templatePath), [
     applyTemplates(templateOptions),

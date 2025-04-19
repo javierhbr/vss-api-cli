@@ -1,0 +1,12 @@
+/**
+ * <%= portName %> - Port interface for <%= name %> operations
+ * Ports define the boundaries between the domain and external systems/adapters.
+ */
+
+export interface <%= portName %> {
+  // Define your port contract methods here
+  // For example:
+  find(id: string): Promise<unknown>;
+  save(entity: unknown): Promise<unknown>;
+  delete(id: string): Promise<boolean>;
+}

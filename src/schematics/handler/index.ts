@@ -4,6 +4,7 @@ import {
   filter, mergeWith, move, noop, url
 } from '@angular-devkit/schematics';
 import { Schema as HandlerOptions } from './schema'; // Assuming schema.d.ts will be created
+import * as path from 'path';
 
 // Removed unused dasherize
 const { classify, camelize } = strings;
@@ -14,8 +15,9 @@ export default function (options: HandlerOptions): Rule {
   }
 
   const name = options.name;
-  // Default path logic (can be customized)
-  const targetPath = options.path ?? `src/handlers`;
+  // Properly handle base path - use options.path if provided
+  const basePath = options.path || '';
+  const targetPath = path.join(basePath, 'src/handlers');
 
   const templateSource = apply(url('./files'), [
     options.schema ? noop() : filter(path => !path.endsWith('Schema.ts.template')), // Filter out schema if not requested
