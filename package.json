@@ -1,5 +1,5 @@
 {
-  "name": "vss-ol-cli",
+  "name": "vss-api-cli",
   "version": "1.0.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -30,7 +30,7 @@
     "typescript": "^5.8.3"
   },
   "bin": {
-    "vss-ol-cli": "dist/index.js"
+    "vss-api-cli": "dist/index.js"
   },
   "schematics": "./dist/schematics/collection.json"
 }

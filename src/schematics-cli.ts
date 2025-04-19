@@ -48,7 +48,7 @@ export class SchematicsCli {
             path.resolve(__dirname, './schematics/collection.json'),
             
             // When installed as package
-            path.resolve(process.cwd(), './node_modules/vss-ol-cli/dist/schematics/collection.json'),
+            path.resolve(process.cwd(), './node_modules/vss-api-cli/dist/schematics/collection.json'),
             
             // When in development, use local path
             path.resolve(process.cwd(), './src/schematics/collection.json')
