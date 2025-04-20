@@ -21,13 +21,22 @@
   "dependencies": {
     "commander": "^13.1.0",
     "fs-extra": "^11.3.0",
-    "inquirer": "^12.5.2"
+    "inquirer": "^12.5.2",
+    "@docusaurus/core": "3.7.0",
+    "@docusaurus/preset-classic": "3.7.0",
+    "@mdx-js/react": "^3.0.0",
+    "prism-react-renderer": "^2.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@angular-devkit/core": "^19.2.8",
     "@angular-devkit/schematics": "^19.2.8",
     "@types/fs-extra": "^11.0.4",
     "@types/inquirer": "^9.0.7",
+    "@docusaurus/module-type-aliases": "3.7.0",
+    "@docusaurus/tsconfig": "3.7.0",
+    "@docusaurus/types": "3.7.0",
     "@types/node": "^22.14.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"

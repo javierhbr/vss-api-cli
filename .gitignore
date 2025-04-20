@@ -82,3 +82,6 @@ test-output/
 doc/node_modules/
 doc/build/
 doc/.docusaurus/
+
+# Deployment temp directory
+.deploy_docs_temp/
