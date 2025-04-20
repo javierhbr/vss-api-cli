@@ -1,75 +1,68 @@
-# VSS-OL-CLI
+# VSS-API-CLI
 
-A CLI tool for scaffolding Middy-based serverless projects with hexagonal architecture. This tool helps you quickly generate handlers, domains, ports, and services following best practices.
+A CLI tool for scaffolding API projects with hexagonal architecture. This tool helps you quickly generate handlers, domains, ports, and services following clean architecture best practices.
 
 ## Installation
 
 ### Global Installation
 
 ```bash 
-npm install -g vss-ol-cli
+npm install -g vss-api-cli
 ```
 
 ### Local Installation
 
 ```bash
-npm install --save-dev vss-ol-cli
+npm install --save-dev vss-api-cli
 ```
 
 ## Usage
 
-The CLI provides commands to generate different components:
+The CLI provides specific commands to generate different components:
 
 ```bash
-vss-ol-cli generate <schematic> [name] [options]
+vss-api-cli create:<component> <name> [options]
 ```
 
-Or use the shorthand alias:
+You can also use the shorthand aliases for each command:
 
 ```bash
-vss-ol-cli g <schematic> [name] [options]
-```
-
-You can also use the specific creation commands:
-
-```bash
-vss-ol-cli create:<component> <name> [options]
+vss-api-cli <alias> <name> [options]
 ```
 
 ## Commands and Options
 
 ### Handler Generator (`create:handler` or `ch`)
 
-Creates a new Middy handler with optional schema validation.
+Creates a new API handler with optional schema validation.
 
 ```bash
-vss-ol-cli create:handler <name> [options]
+vss-api-cli create:handler <name> [options]
 # or
-vss-ol-cli ch <name> [options]
+vss-api-cli ch <name> [options]
 ```
 
 **Options:**
-- `-p, --path <outputPath>` - Specify a custom output path (default: `src/handlers`)
-- `-s, --schema` - Generate a Zod schema file for input validation
-- `-y, --yes` - Skip confirmation prompts and use default options
+- `-p, --path <outputPath>` - Specify a custom output path for the handler
+- `-s, --schema` - Generate schema validation files
 - `--no-validation` - Skip schema validation setup
 
 **Examples:**
 ```bash
 # Basic handler creation
-vss-ol-cli create:handler createUser
+vss-api-cli create:handler createUser
 
 # Handler with schema validation
-vss-ol-cli create:handler createUser --schema
+vss-api-cli create:handler createUser --schema
 
 # Handler in custom path with schema
-vss-ol-cli create:handler createUser -p src/functions -s
+vss-api-cli create:handler createUser -p src/functions -s
 
 # Non-interactive creation
-vss-ol-cli create:handler createUser -y
+vss-api-cli create:handler createUser -y
 
 # Handler without validation
-vss-ol-cli create:handler createUser --no-validation
+vss-api-cli create:handler createUser --no-validation
 ```
 
 ### Domain Generator (`create:domain` or `cd`)
@@ -77,9 +70,9 @@ vss-ol-cli create:handler createUser --no-validation
 Creates a new domain with models, services, and ports.
 
 ```bash
-vss-ol-cli create:domain <domainName> [options]
+vss-api-cli create:domain <domainName> [options]
 # or
-vss-ol-cli cd <domainName> [options]
+vss-api-cli cd <domainName> [options]
 ```
 
 **Options:**
@@ -93,25 +86,25 @@ vss-ol-cli cd <domainName> [options]
 **Examples:**
 ```bash
 # Basic domain creation (interactive)
-vss-ol-cli create:domain user
+vss-api-cli create:domain user
 
 # Domain with custom path
-vss-ol-cli create:domain payment --path src/domains
+vss-api-cli create:domain payment --path src/domains
 
 # Domain with REST adapter
-vss-ol-cli create:domain product --adapter-type rest
+vss-api-cli create:domain product --adapter-type rest
 
 # Domain without model
-vss-ol-cli create:domain order --no-model
+vss-api-cli create:domain order --no-model
 
 # Domain with specific components
-vss-ol-cli create:domain catalog --no-port --no-service
+vss-api-cli create:domain catalog --no-port --no-service
 
 # Non-interactive with defaults
-vss-ol-cli create:domain user -y
+vss-api-cli create:domain user -y
 
 # Complete custom setup
-vss-ol-cli create:domain payment --adapter-type graphql --path custom/path --no-model
+vss-api-cli create:domain payment --adapter-type graphql --path custom/path --no-model
 ```
 
 ### Port Generator (`create:port` or `cp`)
@@ -119,16 +112,39 @@ vss-ol-cli create:domain payment --adapter-type graphql --path custom/path --no-
 Creates a new port interface and its infrastructure adapter implementation.
 
 ```bash
-vss-ol-cli create:port <name> [options]
+vss-api-cli create:port <name> [options]
 # or
-vss-ol-cli cp <name> [options]
+vss-api-cli cp <name> [options]
+```
+
+**Options:**
+- `-p, --path <outputPath>` - Specify a custom output path (default: `src/ports`)
+- `-d, --domain <domainName>` - Specify the domain name the port belongs to
+- `-y, --yes` - Skip prompts and use default options
+
+**Examples:**
+```bash
+# Basic port creation
+vss-api-cli create:port userRepository
+
+# Port with custom path
+vss-api-cli create:port userRepository --path src/adapters
+
+# Port for a specific domain
+vss-api-cli create:port userRepository --domain user
+
+# Non-interactive creation
+vss-api-cli create:port userRepository -y
+```
+
+### Service Generator (`create:service` or `cs`)
 
 Creates a new domain service.
 
 ```bash
-vss-ol-cli create:service <name> [options]
+vss-api-cli create:service <name> [options]
 # or
-vss-ol-cli cs <name> [options]
+vss-api-cli cs <name> [options]
 ```
 
 **Options:**
@@ -137,7 +153,7 @@ vss-ol-cli cs <name> [options]
 
 **Example:**
 ```bash
-vss-ol-cli create:service UserCreator -d user
+vss-api-cli create:service UserCreator -d user
 ```
 
 This creates:
@@ -146,6 +162,15 @@ This creates:
 ## Interactive Prompts
 
 If you don't specify required options, the CLI will prompt you for the needed information interactively. For automated workflows, you can use the `--yes` flag to skip prompts and use default values.
+
+## Automatic Domain Detection
+
+When creating a port or service, the CLI will automatically detect existing domains in your project and offer them as choices in an interactive prompt if you don't specify the domain name with the `--domain` option. This makes it easy to add new components to existing domains.
+
+```bash
+# The CLI will scan for domains and show them as options
+vss-api-cli create:service UserUpdater
+```
 
 ## Generated Project Structure
 
@@ -175,12 +200,83 @@ The CLI generates files following this structure:
 
 All generated code follows a consistent structure that adheres to hexagonal architecture principles, with clear separation between domain logic and infrastructure concerns.
 
+## Detailed File Structure
+
+Here's a more detailed look at the files generated by each command:
+
+### Handler Files
+- **Handler File**: Contains the main API handler function, with proper error handling and response formatting
+- **Schema File**: Contains Zod validation schema for request validation (when using --schema option)
+
+### Domain Files
+- **Model**: Core business entities with properties and methods
+- **Port**: Interface that defines required operations for infrastructure adapters
+- **Service**: Business logic implementation using the domain model and ports
+- **Adapter**: Implementation of port interfaces for different infrastructure concerns
+
+### Example Generated Files
+
+For a `create:domain user` command:
+
+```typescript
+// src/user/models/User.ts
+export class User {
+  id: string;
+  name: string;
+  email: string;
+  
+  constructor(props: Partial<User>) {
+    Object.assign(this, props);
+  }
+}
+
+// src/user/ports/UserRepositoryPort.ts
+import { User } from '../models/User';
+
+export interface UserRepositoryPort {
+  findById(id: string): Promise<User | null>;
+  save(user: User): Promise<User>;
+  // Other repository methods...
+}
+
+// src/user/services/UserService.ts
+import { User } from '../models/User';
+import { UserRepositoryPort } from '../ports/UserRepositoryPort';
+
+export class UserService {
+  constructor(private readonly repository: UserRepositoryPort) {}
+  
+  async createUser(userData: Partial<User>): Promise<User> {
+    const user = new User(userData);
+    return this.repository.save(user);
+  }
+  
+  // Other service methods...
+}
+
+// src/infra/repository/UserRepositoryAdapter.ts
+import { User } from '../../user/models/User';
+import { UserRepositoryPort } from '../../user/ports/UserRepositoryPort';
+
+export class UserRepositoryAdapter implements UserRepositoryPort {
+  async findById(id: string): Promise<User | null> {
+    // Implementation details...
+  }
+  
+  async save(user: User): Promise<User> {
+    // Implementation details...
+  }
+  
+  // Other repository methods...
+}
+```
+
 ## Path Handling
 
 When specifying a custom output path with the `--path` option, all generated files will be placed under the specified directory, maintaining the correct folder structure:
 
 ```bash
-vss-ol-cli create:domain payments --path test-output --yes
+vss-api-cli create:domain payments --path test-output --yes
 ```
 
 Will create:
@@ -198,6 +294,16 @@ test-output/
         └── repository/
             └── PaymentsRepositoryAdapter.ts
 ```
+
+## Command Help System
+
+Each command includes a detailed help system. Use `--help` with any command to see detailed usage instructions:
+
+```bash
+vss-api-cli create:service --help
+```
+
+The help system provides detailed information on command options, structure of generated files, and example usage.
 
 ## Contributing
 
