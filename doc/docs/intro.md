@@ -34,9 +34,9 @@ You can also use the shorthand aliases for each command:
 vss-api-cli <alias> <name> [options]
 ```
 
-See the [Commands](./commands/category) section for details on available commands.
+See the [Commands](/commands/handler) section for details on available commands.
 
-Refer to the [Architecture](./architecture) page for details on the generated project structure.
+Refer to the [Architecture](/architecture) page for details on the generated project structure.
 
 ## Contributing
 

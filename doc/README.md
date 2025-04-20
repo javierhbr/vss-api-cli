@@ -30,6 +30,11 @@ Using SSH:
 
 ```
 $ USE_SSH=true yarn deploy
+
+export GIT_USER=your-github-username
+export GIT_PASS=your-personal-access-token
+npm run deploy-docs
+
 ```
 
 Not using SSH:

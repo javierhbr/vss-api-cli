@@ -20,7 +20,7 @@ function HomepageHeader() {
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
-            to="/docs/intro">
+            to="/intro">
             <b>vss-api-cli</b> Bootcamp: 300 Seconds to Glory ⏱️💻
           </Link>
         </div>
