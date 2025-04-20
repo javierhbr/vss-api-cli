@@ -2,6 +2,9 @@
 
 A CLI tool for scaffolding API projects with hexagonal architecture. This tool helps you quickly generate handlers, domains, ports, and services following clean architecture best practices.
 
+https://javierhbr.github.io/vss-api-cli/
+
+
 ## Installation
 
 ### Global Installation
