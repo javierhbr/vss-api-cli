@@ -14,7 +14,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "CLI tool for scaffolding Middy-based serverless projects with hexagonal architecture.",
+  "description": "CLI tool for scaffolding Middy-based serverless projects with great practices.",
   "dependencies": {
     "commander": "^13.1.0",
     "fs-extra": "^11.3.0",

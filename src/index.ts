@@ -75,7 +75,7 @@ function getWelcomeMessage(commandName: string): { action: string, description: 
     },
     'default': {
       action: 'Welcome to Domain CLI',
-      description: 'A tool for scaffolding Middy-based serverless projects with hexagonal architecture'
+      description: 'A tool for scaffolding Middy-based serverless'
     }
   } as const;
 
