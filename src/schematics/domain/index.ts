@@ -1,7 +1,8 @@
 import { strings } from '@angular-devkit/core';
 import {
   Rule, SchematicsException, apply, applyTemplates, chain,
-  mergeWith, move, url, Tree, SchematicContext, Source, SchematicContext as Context
+  mergeWith, move, url, Tree, SchematicContext, Source, 
+  MergeStrategy
 } from '@angular-devkit/schematics';
 import { Schema as DomainOptions } from './schema';
 import * as path from 'path';
@@ -10,7 +11,7 @@ import * as fs from 'fs-extra';
 const { classify, camelize } = strings;
 
 // Helper to generate a specific part (model, port, adapter, service)
-function generatePart(options: DomainOptions, part: 'model' | 'port' | 'adapter' | 'service', context: Context): Source {
+function generatePart(options: DomainOptions, part: 'model' | 'port' | 'adapter' | 'service', context: SchematicContext): Source {
   const domainName = camelize(options.name);
   const pascalName = classify(options.name);
   
@@ -114,16 +115,20 @@ export default function (options: DomainOptions): Rule {
     const createAdapter = createPort && adapterType !== 'none';
 
     if (createModel) {
-      rules.push(mergeWith(generatePart(options, 'model', context)));
+      // Apply Overwrite strategy
+      rules.push(mergeWith(generatePart(options, 'model', context), MergeStrategy.Overwrite)); 
     }
     if (createPort) {
-      rules.push(mergeWith(generatePart(options, 'port', context)));
+      // Apply Overwrite strategy
+      rules.push(mergeWith(generatePart(options, 'port', context), MergeStrategy.Overwrite)); 
     }
     if (createAdapter) {
-      rules.push(mergeWith(generatePart(options, 'adapter', context)));
+      // Apply Overwrite strategy
+      rules.push(mergeWith(generatePart(options, 'adapter', context), MergeStrategy.Overwrite)); 
     }
     if (createService) {
-      rules.push(mergeWith(generatePart(options, 'service', context)));
+      // Apply Overwrite strategy
+      rules.push(mergeWith(generatePart(options, 'service', context), MergeStrategy.Overwrite)); 
       // Optional: Auto-wire (log message for now)
       context.logger.info(`Consider wiring '${classify(options.name)}Service' in your dependency injection setup.`);
     }

@@ -129,9 +129,9 @@ Options:
                 try {
                     console.log(`\nGenerating handler ${name}...`);
                     await runSchematic('handler', schematicOptions);
-                    console.log('\x1b[32m✓\x1b[0m Handler created successfully!');
+                    console.log('\x1b[32m✓\x1b[0m ⏱️ Handler created. We just saved you 37 clicks and 2 existential crises.!');
                 } catch (error) {
-                    console.error('\x1b[31m✗\x1b[0m Failed to create handler:', error);
+                    console.error('\x1b[31m✗\x1b[0m We tried. The handler said “nah.”:', error);
                 }
             } else {
                 console.log('\nOperation cancelled. No files were created.');

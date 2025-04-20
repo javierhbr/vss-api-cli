@@ -79,6 +79,11 @@ export class SchematicsCli {
 
         for (const arg of args) {
             if (arg.startsWith('--')) {
+                // Explicitly ignore --force argument here
+                if (arg === '--force') {
+                    currentKey = null; // Reset key if it was --force
+                    continue; 
+                }
                 // Convert kebab-case to camelCase
                 currentKey = arg.substring(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
                 options[currentKey] = true; // Default to true for flags
@@ -94,8 +99,8 @@ export class SchematicsCli {
         return options;
     }
 
-    private createWorkflow(options: { dryRun: boolean, outputDir?: string }): NodeWorkflow {
-        const { dryRun } = options; // Remove unused outputDir variable
+    private createWorkflow(options: { dryRun: boolean, force: boolean, outputDir?: string }): NodeWorkflow { // Add force parameter
+        const { dryRun, force } = options; // Destructure force
         
         // SIMPLE APPROACH: Just use the current working directory as root
         // We'll handle the output directory later in the schematic itself
@@ -105,6 +110,7 @@ export class SchematicsCli {
         
         const workflow = new NodeWorkflow(root, {
             dryRun,
+            force, // Pass force to the workflow options
             resolvePaths: [process.cwd(), __dirname],
             schemaValidation: true,
         });
@@ -148,12 +154,15 @@ export class SchematicsCli {
     }
 
     async run(runOptions: SchematicRunOptions): Promise<void> {
-        const { schematic: schematicName, name, options: rawOptions, dryRun = false, outputDir } = runOptions;
+        // Destructure force from runOptions
+        const { schematic: schematicName, name, options: rawOptions, dryRun = false, force = false, outputDir } = runOptions; 
 
         const parsedOptions = this.parseSchematicArgs(rawOptions);
         if (name) {
             parsedOptions.name = name; // Add the positional name argument
         }
+        // Remove force from parsedOptions - let the workflow handle it
+        // delete parsedOptions.force; // Or just don't add it
 
         // Add path option if outputDir is provided
         if (outputDir) {
@@ -166,17 +175,22 @@ export class SchematicsCli {
             const collection = this.engine.createCollection(this.collectionName);
             
             try {
-                // Check if schematic exists (don't store the return value to avoid unused var warnings)
+                // Check if schematic exists
                 collection.createSchematic(schematicName, true);
                 
-                // Set up workflow for the actual file system operations
-                const workflow = this.createWorkflow({ dryRun, outputDir });
+                // Set up workflow, passing the force flag correctly
+                const workflow = this.createWorkflow({ dryRun, force, outputDir }); 
 
                 this.logger.info(`Executing schematic: ${schematicName}`);
-                this.logger.info(`Options: ${JSON.stringify(parsedOptions)}`);
+                // Log options passed to the schematic itself (without force)
+                this.logger.info(`Schematic Options: ${JSON.stringify(parsedOptions)}`); 
                 
                 if (dryRun) {
                     this.logger.info('Running in dry-run mode - no changes will be made to the filesystem');
+                }
+                if (force) {
+                    // Log that the workflow is in force mode
+                    this.logger.info('Workflow running in force mode - existing files may be overwritten'); 
                 }
 
                 // Execute the schematic with proper workflow
@@ -184,27 +198,27 @@ export class SchematicsCli {
                     workflow.execute({
                         collection: this.collectionName,
                         schematic: schematicName,
-                        options: parsedOptions,
+                        options: parsedOptions, // Pass options without force
                     }).subscribe({
                         next: () => {
                             // Processing tree transformations
                         },
                         error: (error) => {
-                            this.logger.error(`Error executing schematic: ${error.message}`);
+                            this.logger.error(`Error executing Code recipe: ${error.message}`);
                             reject(error);
                         },
                         complete: () => {
-                            this.logger.info(`Schematic ${schematicName} executed successfully.`);
+                            this.logger.info(` 🛠️ - Code recipe ${schematicName} executed. All systems green..`);
                             resolve();
                         }
                     });
                 });
             } catch (error) {
-                throw new Error(`Schematic '${schematicName}' not found in collection '${this.collectionName}' or is invalid.`);
+                throw new Error(`Code recipe '${schematicName}' not found in collection '${this.collectionName}' or is invalid.`);
             }
         } catch (err) {
             if (err instanceof UnsuccessfulWorkflowExecution) {
-                this.logger.error('The Schematic workflow failed. See above.');
+                this.logger.error('The Code recipe workflow failed. See above.');
             } else {
                 this.logger.error(`Error: ${(err as Error).message}`);
             }
@@ -220,20 +234,22 @@ export class SchematicsCli {
 export async function runSchematic(
     schematicName: string, 
     options: Record<string, any> = {},
-    dryRun: boolean = false
+    dryRun: boolean = false,
+    force: boolean = false // Add force parameter
 ): Promise<void> {
     const cli = new SchematicsCli();
     
-    // Fix the option parsing to properly separate keys and values
     const schematicArgs: string[] = [];
     
-    // Extract name separately since it's a special case
     const { name, ...restOptions } = options;
     
-    // Process the rest of the options
     Object.entries(restOptions).forEach(([key, value]) => {
+        // Ensure 'force' from the options object is not added to schematicArgs
+        if (key === 'force') return; 
+
         if (typeof value === 'boolean') {
-            if (value) {
+            // Only add boolean flags if true
+            if (value) { 
                 schematicArgs.push(`--${key}`);
             }
         } else if (value !== undefined && value !== null && value !== '') {
@@ -242,20 +258,17 @@ export async function runSchematic(
         }
     });
     
-    // Add force option to disable interactive prompts
-    schematicArgs.push('--force');
-    
     try {
         await cli.run({ 
             schematic: schematicName,
-            name, // Pass name separately
-            options: schematicArgs,
-            outputDir: options.path, // Make sure path is passed as outputDir
+            name, 
+            options: schematicArgs, // Pass args without force
+            outputDir: options.path, 
             dryRun,
-            force: true // Add force option to disable interactive prompts
+            force // Pass the force flag value here to cli.run
         });
     } catch (error) {
-        console.error(`Error executing schematic ${schematicName}:`, error);
+        console.error(`Error executing Code recipe ${schematicName}:`, error);
         throw error;
     }
 }

@@ -197,9 +197,9 @@ Options:
                 try {
                     console.log(`Generating port ${portName}Port for domain ${domainName} with ${adapterType} adapter...`);
                     await runSchematic('port', schematicOptions);
-                    console.log('Port and adapter created successfully!');
+                    console.log('⏱️ Port and adapter created. We just saved you 37 clicks and 2 existential crises!!');
                 } catch (error) {
-                    console.error('Failed to create port:', error);
+                    console.error('We tried. The  port said “nah.”:', error);
                 }
             } else {
                 console.log('\nOperation cancelled. No files were created.');
