@@ -124,7 +124,7 @@ async function main() {
   // Create and configure the program
   program
     .name('vss-api-cli')
-    .description(`CLI tool for scaffolding Middy-based serverless projects using schematics.`)
+    .description(`CLI tool for scaffolding Middy-based serverless projects.`)
     .version('1.0.0')
     .hook('preAction', async () => {
       // For the root --help command, show detailed help with pagination

@@ -77,3 +77,8 @@ test-output/
 
 # Local configuration files
 .npmrc
+
+# Docusaurus
+doc/node_modules/
+doc/build/
+doc/.docusaurus/
