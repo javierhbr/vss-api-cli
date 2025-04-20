@@ -14,12 +14,35 @@ function generateFilePreview(options: {
   model?: boolean,
   service?: boolean,
   port?: boolean,
-  adapterType?: string
+  modelName?: string,
+  serviceName?: string,
+  portName?: string,
+  adapterType?: string,
+  adapterName?: string; // Add adapterName parameter
 }): string {
-  const { name, path: outputPath = '', model = true, service = true, port = true, adapterType = 'repository' } = options;
+  const { 
+    name, 
+    path: outputPath = '', 
+    model = true, 
+    service = true, 
+    port = true, 
+    modelName,
+    serviceName,
+    portName,
+    adapterType = 'repository',
+    adapterName // Destructure adapterName
+  } = options;
+  
   const domainName = toCamelCase(name);
   const pascalName = toPascalCase(domainName);
   const basePath = outputPath ? `${outputPath}/` : '';
+  
+  // Use custom names if provided, otherwise derive from domain name
+  const finalModelName = modelName ? toPascalCase(modelName) : pascalName;
+  const finalServiceName = serviceName ? toPascalCase(serviceName) : `${pascalName}Service`;
+  const finalPortName = portName ? toPascalCase(portName) : `${pascalName}${capitalizeFirstLetter(adapterType)}Port`;
+  // Use custom adapter name if provided, otherwise derive it
+  const finalAdapterName = adapterName ? toPascalCase(adapterName) : `${pascalName}${capitalizeFirstLetter(adapterType)}Adapter`; 
   
   let preview = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
   preview += `\x1b[36m${basePath}src/\x1b[0m\n`;
@@ -29,24 +52,25 @@ function generateFilePreview(options: {
     
     if (model) {
       preview += `\x1b[36m│   ├── models/\x1b[0m\n`;
-      preview += `\x1b[32m│   │   └── ${pascalName}.ts\x1b[0m \x1b[90m- Domain model\x1b[0m\n`;
+      preview += `\x1b[32m│   │   └── ${finalModelName}.ts\x1b[0m \x1b[90m- Domain model\x1b[0m\n`;
     }
     
     if (port) {
       preview += `\x1b[36m│   ├── ports/\x1b[0m\n`;
-      preview += `\x1b[32m│   │   └── ${pascalName}${capitalizeFirstLetter(adapterType)}Port.ts\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
+      preview += `\x1b[32m│   │   └── ${finalPortName}.ts\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
     }
     
     if (service) {
       preview += `\x1b[36m│   └── services/\x1b[0m\n`;
-      preview += `\x1b[32m│       └── ${pascalName}Service.ts\x1b[0m \x1b[90m- Domain service implementation\x1b[0m\n`;
+      preview += `\x1b[32m│       └── ${finalServiceName}.ts\x1b[0m \x1b[90m- Domain service implementation\x1b[0m\n`;
     }
   }
   
   if (port && adapterType !== 'none') {
     preview += `\x1b[36m└── infra/\x1b[0m\n`;
     preview += `\x1b[36m    └── ${adapterType}/\x1b[0m\n`;
-    preview += `\x1b[32m        └── ${pascalName}${capitalizeFirstLetter(adapterType)}Adapter.ts\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`;
+    // Use finalAdapterName in the preview
+    preview += `\x1b[32m        └── ${finalAdapterName}.ts\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`; 
   }
   
   return preview;
@@ -63,6 +87,10 @@ export function createDomainCommand(): Command {
         .option('--no-service', 'Skip domain service generation')
         .option('--no-port', 'Skip port interface generation')
         .option('--adapter-type <type>', 'Type of adapter to implement the port (repository, rest, graphql, none)', 'repository')
+        .option('--model-name <name>', 'Custom name for the model')
+        .option('--service-name <name>', 'Custom name for the service')
+        .option('--port-name <name>', 'Custom name for the port interface')
+        .option('--adapter-name <name>', 'Custom name for the adapter implementation') // Add adapter name option
         .hook('preAction', async () => {
             // Show detailed help with pagination when --help is used
             if (process.argv.includes('--help')) {
@@ -88,6 +116,7 @@ Examples:
   $ vss-api-cli create:domain payment --path src/domains
   $ vss-api-cli create:domain product --adapter-type rest
   $ vss-api-cli create:domain order --no-model --no-port
+  $ vss-api-cli create:domain customer --model-name Client --service-name CustomerManagement
 
 Additional Information:
   • Domain names are automatically converted to proper case in generated files
@@ -96,6 +125,7 @@ Additional Information:
   • Ports are named based on adapter type (e.g., UserRepositoryPort)
   • Generated code follows clean architecture principles
   • All files include TypeScript types and documentation
+  • You can customize component names via flags or interactive prompts
 
 Options:
   -p, --path <outputPath>     Specify a custom output path for the domain
@@ -104,6 +134,10 @@ Options:
   --no-service               Skip domain service generation
   --no-port                  Skip port interface generation
   --adapter-type <type>      Type of adapter (repository, rest, graphql, none)
+  --model-name <name>        Custom name for the model
+  --service-name <name>      Custom name for the service
+  --port-name <name>         Custom name for the port interface
+  --adapter-name <name>      Custom name for the adapter implementation
   -h, --help                 Display this help message
 `;
                 await displayWithPagination(helpContent);
@@ -116,38 +150,92 @@ Options:
             
             let answers;
             
+            // Confirm domain name first, unless --yes flag is explicitly set
+            let finalDomainName = domainName;
+            
+            // Ensure cmdOptions.yes is explicitly set to true, not just truthy
+            const skipPrompts = cmdOptions.yes === true;
+            
+            if (!skipPrompts) {
+                const nameConfirmation = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'confirmName',
+                        message: `Domain will be created with name: "${domainName}" (${pascalName})${cmdOptions.path ? ` in path: "${cmdOptions.path}"` : ''}. Is this correct?`,
+                        default: true,
+                    },
+                    {
+                        type: 'input',
+                        name: 'newName',
+                        message: 'Enter a new domain name:',
+                        when: (ans) => !ans.confirmName,
+                        validate: (input) => {
+                            if (!input.trim()) return 'Domain name cannot be empty';
+                            return true;
+                        }
+                    }
+                ]);
+                
+                if (nameConfirmation.newName) {
+                    finalDomainName = nameConfirmation.newName;
+                    const finalCamelName = toCamelCase(finalDomainName);
+                    const finalPascalName = toPascalCase(finalCamelName);
+                    console.log(`\nUsing new domain name: "${finalDomainName}" (${finalPascalName})`);
+                }
+            }
+            
             // Use provided command-line options if --yes flag is set
-            if (cmdOptions.yes) {
+            if (skipPrompts) {
                 answers = {
                     createModel: cmdOptions.model !== false,
                     createService: cmdOptions.service !== false,
                     createPort: cmdOptions.port !== false,
-                    adapterType: cmdOptions.adapterType || 'repository'
+                    adapterType: cmdOptions.adapterType || 'repository',
+                    modelName: cmdOptions.modelName,
+                    serviceName: cmdOptions.serviceName,
+                    portName: cmdOptions.portName,
+                    adapterName: cmdOptions.adapterName // Get adapterName from options
                 };
                 console.log('Using default options:');
                 console.log(`- Create model: ${answers.createModel ? 'Yes' : 'No'}`);
                 console.log(`- Create service: ${answers.createService ? 'Yes' : 'No'}`);
                 console.log(`- Create port: ${answers.createPort ? 'Yes' : 'No'}`);
                 console.log(`- Adapter type: ${answers.adapterType}`);
+                if (answers.modelName) console.log(`- Custom model name: ${answers.modelName}`);
+                if (answers.serviceName) console.log(`- Custom service name: ${answers.serviceName}`);
+                if (answers.portName) console.log(`- Custom port name: ${answers.portName}`);
+                if (answers.adapterName) console.log(`- Custom adapter name: ${answers.adapterName}`); // Log adapterName
             } else {
                 // Interactive mode with prompts
                 answers = await inquirer.prompt([
                     {
                         type: 'confirm',
                         name: 'createModel',
-                        message: `Create a model (${pascalName})?`,
+                        message: `Create a model (${toPascalCase(toCamelCase(finalDomainName))})?`,
                         default: true,
+                    },
+                    {
+                        type: 'input',
+                        name: 'modelName',
+                        message: () => `Enter a custom name for the model or leave empty to use ${toPascalCase(toCamelCase(finalDomainName))}:`,
+                        when: (ans) => ans.createModel && !cmdOptions.modelName,
                     },
                     {
                         type: 'confirm',
                         name: 'createService',
-                        message: `Create a service (${pascalName}Service)?`,
+                        message: `Create a service (${toPascalCase(toCamelCase(finalDomainName))}Service)?`,
                         default: true,
+                    },
+                    {
+                        type: 'input',
+                        name: 'serviceName',
+                        message: `Enter a custom name for the service (e.g., UserService, ProductManagement, OrderProcessor) or leave empty to use ${toPascalCase(toCamelCase(finalDomainName))}Service:`,
+                        when: (ans) => ans.createService && !cmdOptions.serviceName,
                     },
                     {
                         type: 'confirm',
                         name: 'createPort',
-                        message: `Create a port interface (${pascalName}RepositoryPort)?`,
+                        message: (ans) => `Create a port interface (${toPascalCase(toCamelCase(ans.serviceName || finalDomainName))}RepositoryPort)?`, // Use serviceName if provided
                         default: true,
                     },
                     {
@@ -158,17 +246,41 @@ Options:
                         default: 'repository',
                         when: (ans) => ans.createPort,
                     },
+                    {
+                        type: 'input',
+                        name: 'portName',
+                        message: (ans) => `Enter a custom name for the port interface (e.g., UserRepository, ProductDataAccess, OrderStorage) or leave empty to use ${toPascalCase(toCamelCase(ans.serviceName || finalDomainName))}${capitalizeFirstLetter(ans.adapterType || 'repository')}Port:`, // Use serviceName if provided
+                        when: (ans) => ans.createPort && !cmdOptions.portName, // Only ask if creating port and not provided via options
+                        default: (ans) => `${toPascalCase(toCamelCase(ans.serviceName || finalDomainName))}${capitalizeFirstLetter(ans.adapterType || 'repository')}Port`, // Provide default based on service/domain and adapter
+                    },
+                    { // Add prompt for adapter name
+                        type: 'input',
+                        name: 'adapterName',
+                        message: (ans) => `Enter a custom name for the adapter implementation (e.g., UserMongoAdapter, ProductRestDatasource) or leave empty to use ${toPascalCase(toCamelCase(ans.serviceName || finalDomainName))}${capitalizeFirstLetter(ans.adapterType)}Adapter:`, 
+                        when: (ans) => ans.createPort && ans.adapterType !== 'none' && !cmdOptions.adapterName, // Show only if port+adapter are created and not provided via options
+                        default: (ans) => `${toPascalCase(toCamelCase(ans.serviceName || finalDomainName))}${capitalizeFirstLetter(ans.adapterType)}Adapter`, // Default derived name
+                    },
                 ]);
             }
 
+            // Use command line options if provided (they take precedence)
+            if (cmdOptions.modelName) answers.modelName = cmdOptions.modelName;
+            if (cmdOptions.serviceName) answers.serviceName = cmdOptions.serviceName;
+            if (cmdOptions.portName) answers.portName = cmdOptions.portName;
+            if (cmdOptions.adapterName) answers.adapterName = cmdOptions.adapterName; // Apply adapterName from options
+
             // Generate options for the schematic
             const schematicOptions = {
-                name: domainName,
+                name: finalDomainName,
                 path: cmdOptions.path || '',
                 model: answers.createModel,
                 service: answers.createService,
                 port: answers.createPort,
-                adapterType: answers.adapterType || 'repository'
+                adapterType: answers.adapterType || 'repository',
+                modelName: answers.modelName || '',
+                serviceName: answers.serviceName || '',
+                portName: answers.portName || '',
+                adapterName: answers.adapterName || '' // Pass adapterName to schematic options
             };
 
             // Generate and show file preview
@@ -176,8 +288,8 @@ Options:
             await displayWithPagination(filePreview);
 
             // Ask for confirmation unless --yes flag is used
-            let proceed = cmdOptions.yes;
-            if (!cmdOptions.yes) {
+            let proceed = skipPrompts;
+            if (!skipPrompts) {
                 const confirmAnswer = await inquirer.prompt([
                     {
                         type: 'confirm',
@@ -192,7 +304,7 @@ Options:
             // Proceed with file generation if confirmed
             if (proceed) {
                 try {
-                    console.log(`\nGenerating domain ${domainName}...`);
+                    console.log(`\nGenerating domain ${finalDomainName}...`);
                     await runSchematic('domain', schematicOptions);
                     console.log('\x1b[32m✓\x1b[0m Domain created successfully!');
                 } catch (error) {

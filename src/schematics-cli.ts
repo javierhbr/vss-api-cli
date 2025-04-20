@@ -19,6 +19,7 @@ interface SchematicRunOptions {
     options: string[]; // Raw CLI arguments for the schematic
     dryRun?: boolean;
     outputDir?: string; // Optional output directory for generated code
+    force?: boolean;    // Option to disable interactive prompts
 }
 
 export class SchematicsCli {
@@ -241,13 +242,17 @@ export async function runSchematic(
         }
     });
     
+    // Add force option to disable interactive prompts
+    schematicArgs.push('--force');
+    
     try {
         await cli.run({ 
             schematic: schematicName,
             name, // Pass name separately
             options: schematicArgs,
             outputDir: options.path, // Make sure path is passed as outputDir
-            dryRun
+            dryRun,
+            force: true // Add force option to disable interactive prompts
         });
     } catch (error) {
         console.error(`Error executing schematic ${schematicName}:`, error);

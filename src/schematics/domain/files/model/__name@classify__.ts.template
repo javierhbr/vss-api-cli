@@ -1,5 +1,5 @@
 // Define your domain model properties and methods here
-export class <%= classify(name) %> {
+export class <%= modelName %> {
   // Example property
   // readonly id: string;
 

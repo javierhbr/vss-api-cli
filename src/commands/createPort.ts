@@ -52,10 +52,10 @@ function generateFilePreview(options: {
 export function createPortCommand(): Command {
     const command = new Command('create:port')
         .alias('cp')
-        .description('Generate a new domain port interface and its infrastructure adapter implementation.')
-        .argument('<n>', 'Name of the port (e.g., UserFinder, PaymentGateway)')
+        .description('Generate a new port and adapter.')
+        .argument('<n>', 'Port name (e.g., ProductRepository, UserDataAccess, PaymentGateway, NotificationService, FileStorage, AuthProvider, DataAnalytics, CacheManager)')
         .option('-d, --domain <domainName>', 'Specify the domain name')
-        .option('-t, --type <adapterType>', 'Specify the adapter type (repository, rest, graphql)')
+        .option('-a, --adapter <adapterName>', 'Specify the adapter name')
         .option('-p, --path <outputPath>', 'Specify a custom output path')
         .option('-y, --yes', 'Skip prompts and use default options')
         .hook('preAction', async () => {
@@ -63,45 +63,64 @@ export function createPortCommand(): Command {
             if (process.argv.includes('--help')) {
                 const helpContent = `
 Description:
-  Generates a new domain port interface and its infrastructure adapter implementation.
-  Ports define boundaries between the domain and external systems or persistence.
-  The adapter provides a concrete implementation of the port interface.
+  Generates a new port (interface) and adapter (implementation) based on
+  the hexagonal architecture pattern. Ports define the contracts between
+  your domain and the outside world, while adapters implement these contracts.
 
 Structure Generated:
   └── src/
-      ├── {domainName}/                # Domain root folder
-      │   └── ports/                   # Port interfaces folder
-      │       └── {portName}.ts        # Port interface definition
-      └── infra/                       # Infrastructure implementations
-          └── {adapterType}/           # Adapter type folder
-              └── {portName}Adapter.ts  # Concrete adapter implementation
+      └── {domainName}/        # Domain root folder
+          └── ports/           # Port interfaces folder
+              └── {name}.ts    # Port interface definition
+          └── adapters/        # Adapter implementations folder
+              └── {adapter}.ts # Adapter implementation
 
 Features:
-  • Clean architecture port interfaces
-  • Infrastructure adapter implementations
-  • Type-safe port definitions
-  • Domain-driven design patterns
-  • Pluggable adapter implementations
+  • Clean architecture port/adapter pattern
+  • Dependency inversion
+  • Interface-based design
+  • Type-safe method signatures
+  • Decoupled infrastructure concerns
 
 Examples:
-  $ vss-api-cli create:port UserRepository -d user
-  $ vss-api-cli create:port PaymentGateway -d payment -t rest
-  $ vss-api-cli cp ProductCatalog --domain product --type graphql
-  $ vss-api-cli create:port OrderFinder -d order --path src/domains
+  $ vss-api-cli create:port UserRepository -d user -a PostgresUserRepository
+  $ vss-api-cli create:port PaymentGateway -d payment -a StripePaymentGateway
+  $ vss-api-cli cp OrderStorage -d order -a MongoOrderStorage
+  $ vss-api-cli create:port NotificationService -d notification -a EmailNotificationService
+  $ vss-api-cli create:port AuthenticationProvider -d auth -a JwtAuthProvider
+  $ vss-api-cli create:port ProductCatalog -d product -a ElasticSearchProductCatalog
+  $ vss-api-cli create:port InventoryTracker -d inventory -a RedisInventoryTracker
+  $ vss-api-cli create:port FileStorage -d document -a S3FileStorage
+
+Port Naming Patterns:
+  • Repository: UserRepository, ProductRepository, OrderRepository
+  • Gateway: PaymentGateway, AuthGateway, ApiGateway, IntegrationGateway
+  • Provider: AuthProvider, DataProvider, ConfigProvider, IdentityProvider
+  • Service: NotificationService, EmailService, SmsService, MessagingService
+  • Manager: CacheManager, SessionManager, ConfigManager, ConnectionManager
+  • Client: HttpClient, DatabaseClient, ApiClient, MessagingClient
+  • Storage: FileStorage, DocumentStorage, BlobStorage, DataStorage
+  • Factory: EntityFactory, DtoFactory, ServiceFactory, AdapterFactory
+
+Adapter Naming Patterns:
+  • Technology-specific: PostgresUserRepository, MongoUserRepository
+  • Vendor-specific: StripePaymentGateway, AwsFileStorage
+  • Implementation-specific: RestApiClient, GraphqlClient
+  • Protocol-specific: HttpNotificationService, WebSocketNotificationService
 
 Additional Information:
   • Port names are automatically converted to PascalCase
-  • Adapters include proper TypeScript types
-  • Follows hexagonal architecture principles
-  • Includes dependency injection setup
-  • Supports various adapter implementations
+  • Adapter names are automatically converted to PascalCase
+  • Follows dependency inversion principle
+  • Enables testability through adapter mocking
+  • Supports infrastructure swapping with minimal impact
 
 Options:
-  -d, --domain <domainName>  Specify the domain name
-  -t, --type <adapterType>   Specify adapter type (repository, rest, graphql)
-  -p, --path <outputPath>    Specify a custom output path
-  -y, --yes                  Skip prompts and use default options
-  -h, --help                Display this help message
+  -d, --domain <domainName>    Specify the domain name
+  -a, --adapter <adapterName>  Specify the adapter name
+  -p, --path <outputPath>      Specify a custom output path
+  -y, --yes                    Skip prompts and use default options
+  -h, --help                   Display this help message
 `;
                 await displayWithPagination(helpContent);
                 process.exit(0);
@@ -127,7 +146,7 @@ Options:
                 const domainAnswer = await inquirer.prompt({
                     type: 'input',
                     name: 'domainName',
-                    message: 'Enter the domain name for this port:',
+                    message: 'Enter the domain name for this port (e.g., user, product, order):',
                     validate: (input: string) => input.trim() !== '' || 'Domain name cannot be empty.',
                 });
                 domainName = domainAnswer.domainName;
@@ -139,7 +158,7 @@ Options:
                     type: 'list',
                     name: 'adapterType',
                     message: 'What type of adapter will implement this port?',
-                    choices: ['repository', 'rest', 'graphql'],
+                    choices: ['repository', 'rest', 'graphql', 'queue', 'cache', 'storage'],
                     default: 'repository',
                 });
                 adapterType = typeAnswer.adapterType;

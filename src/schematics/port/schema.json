@@ -42,6 +42,11 @@
         "type": "string",
         "description": "The name of the project.",
         "visible": false
+    },
+    "portInterfaceName": {
+      "type": "string",
+      "description": "Custom name for the port interface (optional). If not provided, will use name + 'Port' by default.",
+      "alias": "p"
     }
   },
   "required": ["name", "domain"]

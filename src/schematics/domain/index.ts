@@ -31,6 +31,12 @@ function generatePart(options: DomainOptions, part: 'model' | 'port' | 'adapter'
   const domainPath = path.join(srcPath, domainName);
   const adapterType = options.adapterType ?? 'repository';
 
+  // Get custom component names or use defaults
+  const customModelName = options.modelName ? classify(options.modelName) : pascalName;
+  const customServiceName = options.serviceName ? classify(options.serviceName) : `${pascalName}Service`;
+  const customPortName = options.portName ? classify(options.portName) : `${pascalName}${classify(adapterType)}Port`;
+  const customAdapterName = options.adapterName ? classify(options.adapterName) : `${pascalName}${classify(adapterType)}Adapter`;
+
   let templatePath = '';
   let targetPath = '';
   let templateOptions: Record<string, any> = { ...strings, name: options.name };
@@ -39,39 +45,41 @@ function generatePart(options: DomainOptions, part: 'model' | 'port' | 'adapter'
     case 'model':
       templatePath = './files/model';
       targetPath = path.join(domainPath, 'models');
-      templateOptions = { ...templateOptions, modelName: pascalName };
+      templateOptions = { ...templateOptions, modelName: customModelName };
       break;
     case 'port':
-      const portName = `${pascalName}${classify(adapterType)}`;
-      const portInterfaceName = `${portName}Port`;
       templatePath = './files/port';
       targetPath = path.join(domainPath, 'ports');
-      templateOptions = { ...templateOptions, portName: portInterfaceName, portInterfaceName: portInterfaceName }; // Pass both for flexibility
+      templateOptions = { 
+        ...templateOptions, 
+        portName: customPortName, 
+        portInterfaceName: customPortName // Using the custom port name
+      };
       break;
     case 'adapter':
-      const adapterPortName = `${pascalName}${classify(adapterType)}`;
-      const adapterPortInterfaceName = `${adapterPortName}Port`;
-      const adapterName = `${adapterPortName}Adapter`;
       templatePath = './files/adapter';
       // Place adapters under src/infra
       targetPath = path.join(srcPath, 'infra', adapterType);
-      templateOptions = { ...templateOptions, adapterName: adapterName, portName: adapterPortInterfaceName, domainName: domainName };
+      templateOptions = { 
+        ...templateOptions, 
+        adapterName: customAdapterName, 
+        portName: customPortName, 
+        domainName: domainName 
+      };
       break;
     case 'service':
-      const serviceName = `${pascalName}Service`;
-      const servicePortName = `${pascalName}${classify(adapterType)}`;
-      const servicePortInterfaceName = `${servicePortName}Port`;
-      const servicePortVariableName = `${camelize(servicePortName)}Port`;
+      const servicePortName = customPortName.replace(/Port$/, ''); // Remove 'Port' suffix if present
+      const servicePortVariableName = camelize(servicePortName);
       templatePath = './files/service';
       targetPath = path.join(domainPath, 'services');
       templateOptions = {
         ...templateOptions,
-        serviceName: serviceName,
-        portImports: options.port && adapterType !== 'none' ? `import { ${servicePortInterfaceName} } from '../ports/${servicePortInterfaceName}';` : '',
-        portDependencies: options.port && adapterType !== 'none' ? `private readonly ${servicePortVariableName}: ${servicePortInterfaceName}` : '',
-        modelImport: options.model ? `import { ${pascalName} } from '../models/${pascalName}';` : '',
-        modelName: options.model ? pascalName : 'any',
-        portName: options.port && adapterType !== 'none' ? servicePortVariableName : 'examplePort',
+        serviceName: customServiceName,
+        portImports: options.port && adapterType !== 'none' ? `import { ${customPortName} } from '../ports/${customPortName}';` : '',
+        portDependencies: options.port && adapterType !== 'none' ? `private readonly ${servicePortVariableName}Port: ${customPortName}` : '',
+        modelImport: options.model ? `import { ${customModelName} } from '../models/${customModelName}';` : '',
+        modelName: options.model ? customModelName : 'any',
+        portName: options.port && adapterType !== 'none' ? `${servicePortVariableName}Port` : 'examplePort',
       };
       break;
     default:

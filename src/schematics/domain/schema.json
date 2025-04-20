@@ -19,17 +19,32 @@
       "default": true,
       "x-prompt": "Generate a domain model?"
     },
+    "modelName": {
+      "type": "string",
+      "description": "Custom name for the model (defaults to domain name if not specified).",
+      "x-prompt": "Custom model name (leave blank to use domain name):"
+    },
     "service": {
       "type": "boolean",
       "description": "Generate a domain service file.",
       "default": true,
       "x-prompt": "Generate a domain service?"
     },
+    "serviceName": {
+      "type": "string",
+      "description": "Custom name for the service (defaults to domainNameService if not specified).",
+      "x-prompt": "Custom service name (leave blank to use {domainName}Service):"
+    },
     "port": {
       "type": "boolean",
       "description": "Generate a domain port interface and its adapter.",
       "default": true,
       "x-prompt": "Generate a domain port interface and adapter?"
+    },
+    "portName": {
+      "type": "string",
+      "description": "Custom name for the port (defaults to domainNameAdapterTypePort if not specified).",
+      "x-prompt": "Custom port name (leave blank to use {domainName}{adapterType}Port):"
     },
     "adapterType": {
       "type": "string",

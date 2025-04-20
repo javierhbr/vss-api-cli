@@ -43,7 +43,7 @@ export function createServiceCommand(): Command {
     const command = new Command('create:service')
         .alias('cs')
         .description('Generate a new domain service.')
-        .argument('<n>', 'Service name (e.g., UserCreator, ProductFinder)')
+        .argument('<n>', 'Service name (e.g., UserAuthenticator, OrderProcessor, ProductCatalogManager, PaymentTransactionHandler, EmailNotifier, ReportGenerator, DataAnalyzer, InventoryManager)')
         .option('-d, --domain <domainName>', 'Specify the domain name')
         .option('-p, --path <outputPath>', 'Specify a custom output path')
         .option('-y, --yes', 'Skip prompts and use default options')
@@ -54,7 +54,7 @@ export function createServiceCommand(): Command {
 Description:
   Generates a new domain service for implementing business logic.
   Services encapsulate complex operations and domain rules within
-  a specific bounded context.
+  a specific bounded context or domain.
 
 Structure Generated:
   └── src/
@@ -63,30 +63,44 @@ Structure Generated:
               └── {name}Service.ts   # Service implementation
 
 Features:
-  • Domain-driven design services
-  • TypeScript implementation
-  • Port interface integration
-  • Clean architecture patterns
+  • Domain-driven design service structure
   • Business logic encapsulation
+  • Clean architecture principles
+  • Type-safe method signatures
+  • Port dependency injection support
 
 Examples:
-  $ vss-api-cli create:service UserCreator -d user
-  $ vss-api-cli create:service OrderProcessor --domain order
-  $ vss-api-cli cs ProductCatalogManager -d product
-  $ vss-api-cli create:service PaymentHandler --path src/domains
+  $ vss-api-cli create:service UserAuthenticator -d user
+  $ vss-api-cli create:service PaymentProcessor -d payment
+  $ vss-api-cli cs OrderFulfillment --domain order
+  $ vss-api-cli create:service ProductCatalogManager -d product --path src/domains
+  $ vss-api-cli create:service NotificationDispatcher -d notification
+  $ vss-api-cli create:service CustomerProfileManager -d customer
+  $ vss-api-cli create:service InventoryTracker -d inventory
+  $ vss-api-cli create:service SecurityAuditor -d security
+
+Service Naming Patterns:
+  • Process actions: PaymentProcessor, OrderValidator, EmailSender
+  • Management: UserManager, InventoryManager, CatalogManager
+  • Analyzers: DataAnalyzer, BehaviorAnalyzer, TrendAnalyzer
+  • Generators: ReportGenerator, CodeGenerator, ContentGenerator
+  • Validators: InputValidator, PaymentValidator, OrderValidator
+  • Handlers: PaymentHandler, ErrorHandler, EventHandler
+  • Dispatchers: NotificationDispatcher, EmailDispatcher, EventDispatcher
+  • Coordinators: WorkflowCoordinator, ProcessCoordinator, TaskCoordinator
 
 Additional Information:
   • Service names are automatically converted to PascalCase
-  • Includes standard TypeScript types
-  • Follows clean architecture principles
-  • Integrates with domain ports
-  • Includes dependency injection setup
+  • Services include proper TypeScript types
+  • Follows DDD service principles
+  • Service methods are strongly typed
+  • Supports dependency injection of ports and other services
 
 Options:
   -d, --domain <domainName>  Specify the domain name
   -p, --path <outputPath>    Specify a custom output path
   -y, --yes                  Skip prompts and use default options
-  -h, --help                Display this help message
+  -h, --help                 Display this help message
 `;
                 await displayWithPagination(helpContent);
                 process.exit(0);
@@ -111,7 +125,7 @@ Options:
                 const domainAnswer = await inquirer.prompt({
                     type: 'input',
                     name: 'domainName',
-                    message: 'Enter the domain name for this service:',
+                    message: 'Enter the domain name for this service (e.g., user, order, product):',
                     validate: (input: string) => input.trim() !== '' || 'Domain name cannot be empty.',
                 });
                 domainName = domainAnswer.domainName;

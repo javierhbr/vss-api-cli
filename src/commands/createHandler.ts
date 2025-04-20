@@ -30,7 +30,7 @@ export function createHandlerCommand(): Command {
     const command = new Command('create:handler')
         .alias('ch')
         .description('Generate a new API handler with request schema validation.')
-        .argument('<n>', 'Name of the handler (e.g., createUser, updateOrder)')
+        .argument('<n>', 'Name of the handler (e.g., createUser, getUserById, processPayment, searchProducts)')
         .option('-p, --path <outputPath>', 'Specify a custom output path for the handler')
         .option('-s, --schema', 'Generate schema validation files', false)
         .option('--no-validation', 'Skip schema validation setup')
@@ -93,7 +93,7 @@ Options:
                     {
                         type: 'confirm',
                         name: 'schema',
-                        message: 'Generate a schema file for request validation?',
+                        message: 'Generate a schema file for request validation (e.g., for createUser, getProduct handlers)?',
                         default: false,
                     }
                 ]);

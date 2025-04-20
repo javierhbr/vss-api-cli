@@ -32,6 +32,50 @@ vss-api-cli <alias> <name> [options]
 
 ## Commands and Options
 
+
+```
+src/
+├── handlers/                  # Entrypoints (Lambdas) - Adapters Inbound
+│   ├── createUser.handler.ts
+│   │   ├── getUser.handler.ts
+│   │   └── schemas/              # zod schemas
+│   │        └── customRequesSchema.ts  # define Dto from zod schemas
+│   │── middlewares/              # Middy middleware definitions
+│   │    ├── dependencyInjection.ts # Dependency injection (wire up ports to adapters)
+│   │    └── customMiddleware.ts
+├── {domain}/                       # Domain layer (core business logic)
+│   ├── models/
+│   │   └── User.ts               # Domain entities or aggregates
+│   ├── exceptions/
+│   │   └── customException.ts    # Domain logic exceptions
+│   ├── services/
+│   │   └── UserService.ts        # Domain logic (pure functions preferred)
+│   │   └── TranactionsService.ts        # Domain logic (pure functions preferred)
+│   └── ports/                    # Interfaces (Ports)
+│       ├── callSessionRepositoryPort.ts  # Data needed by the Domain Logic
+│       ├── accountInfoPort.ts            
+│       └── accountTranctionsPort.ts
+├── infra/              # Adapters Outbound (external integrations) to satisfy the domain logic needs
+│   ├── repositories/
+│   │   │── sessionStoreRepositoryAdapter.ts # implement callSessionRepository.ts
+│   │   └── adapterZodDto.ts # define Dto from zod schemas
+│   ├── rest/
+│   │   │── ccaCustomerAdapter.ts # 
+│   │   └── adapterZodDto.ts # define Dto from zod schemas
+│   └── graphql/
+│       ├── tranctionsNonMilesAdapter.ts # implement accountTranctionsPort.ts
+│       │── tranctionsMilesAdapter.ts  # implement accountTranctionsPort.ts
+│       └── adapterZodDto.ts # define Dto from zod schemas
+├── config/                      # Configuration files (.json, constants)
+│   ├── default.json
+    └── dev.json
+├── shared/                      # Utilities, types, logger, etc. reusable agnostic logic between domains
+│   ├── utils.ts
+│   └── logger.ts
+├── index.ts                     # main loading handler for lambdas. enable the middy handler and cross middlewares
+└── routes.ts                    # (Optional) routes to handle  API request
+```
+
 ### Handler Generator (`create:handler` or `ch`)
 
 Creates a new API handler with optional schema validation.

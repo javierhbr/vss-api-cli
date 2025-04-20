@@ -3,7 +3,7 @@ import {
   Rule, SchematicsException, apply, applyTemplates, chain,
   mergeWith, move, url, Tree, SchematicContext, filter
 } from '@angular-devkit/schematics';
-import { Schema as PortOptions } from './schema'; // Make sure schema.d.ts is generated
+import { PortOptions } from './schema'; // Changed from Schema as PortOptions
 import * as path from 'path';
 
 // Removed unused dasherize
@@ -25,7 +25,8 @@ export default function (options: PortOptions): Rule {
     // Handle custom output directory
     const basePath = options.path || '';
 
-    const portName = `${classify(portNameRaw)}Port`; // e.g., UserFinderPort
+    // Use the custom port interface name if provided, otherwise use the default pattern
+    const portName = options.portInterfaceName || `${classify(portNameRaw)}Port`; // e.g., UserFinderPort or custom name
     const adapterName = `${classify(portNameRaw)}Adapter`; // e.g., UserFinderAdapter
 
     const domainPath = path.join(basePath, `src/${domainName}`);
