@@ -73,9 +73,13 @@ function getWelcomeMessage(commandName: string): { action: string, description: 
       action: 'Generating components using schematics',
       description: 'This operation will scaffold components based on the specified schematic'
     },
+    'help': {
+      action: 'VSS API CLI Help',
+      description: 'Command reference and options for the CLI tool'
+    },
     'default': {
-      action: 'Welcome to Domain CLI',
-      description: 'A tool for scaffolding Middy-based serverless'
+      action: 'Welcome to VSS API CLI',
+      description: 'A tool for scaffolding Middy-based serverless applications'
     }
   } as const;
 
@@ -89,25 +93,42 @@ function getWelcomeMessage(commandName: string): { action: string, description: 
   return messages[key];
 }
 
+/**
+ * Display help suggestion text
+ */
+function displayHelpSuggestion(): void {
+  console.log("\x1b[33mℹ️  Need help? Run one of these commands:\x1b[0m");
+  console.log("  \x1b[36mvss-api-cli --help\x1b[0m             Show general CLI help");
+  console.log("  \x1b[36mvss-api-cli create:domain --help\x1b[0m    Show domain generator help");
+  console.log("  \x1b[36mvss-api-cli create:handler --help\x1b[0m   Show handler generator help");
+  console.log("  \x1b[36mvss-api-cli create:port --help\x1b[0m      Show port generator help");
+  console.log("  \x1b[36mvss-api-cli create:service --help\x1b[0m   Show service generator help");
+  console.log();
+}
+
 async function main() {
   const program = new Command();
   
-  // Get the command being executed
-  const commandName = process.argv.length > 2 ? process.argv[2] : 'default';
-  // Ensure commandName is never undefined
-  const { action, description } = getWelcomeMessage(commandName || 'default');
+  // Get the command being executed and display welcome banner ALWAYS
+  let commandName = process.argv.length > 2 ? process.argv[2] : 'default';
   
-  // Only display the welcome message when no help flag is present
-  if (!process.argv.includes('--help') && !process.argv.includes('-h')) {
-    displayWelcomeMessage(action, description);
+  // If help flag is present, use 'help' as command name for welcome message
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    commandName = 'help';
   }
   
+  // Display welcome message regardless of command
+  const { action, description } = getWelcomeMessage(commandName || 'default');
+  displayWelcomeMessage(action, description);
+  
+  // Create and configure the program
   program
     .name('vss-api-cli')
     .description(`CLI tool for scaffolding Middy-based serverless projects using schematics.`)
     .version('1.0.0')
     .hook('preAction', async () => {
-      // Show detailed help with pagination when --help is used on the root command
+      // For the root --help command, show detailed help with pagination
+      // But don't clear the screen since we already displayed the welcome banner
       if ((process.argv.includes('--help') || process.argv.includes('-h')) && process.argv.length <= 3) {
         const helpContent = `
 CLI tool for scaffolding Middy-based serverless projects using schematics.
@@ -148,6 +169,22 @@ Options:
         process.exit(0);
       }
     });
+
+  // Override Commander's built-in help display function to maintain our welcome banner
+  // Store original helpInformation method
+  const originalHelpInfo = program.helpInformation;
+  program.helpInformation = function(...args) {
+    // Don't clear the screen, just return the help text
+    // The welcome banner is already displayed
+    return originalHelpInfo.apply(this, args);
+  };
+
+  // Apply the same override to Command prototype to affect all subcommands
+  const originalCommandHelpInfo = Command.prototype.helpInformation;
+  Command.prototype.helpInformation = function(...args) {
+    // Don't clear the screen, just return the help text
+    return originalCommandHelpInfo.apply(this, args);
+  };
 
   // Command to generate components using schematics with enhanced help
   program
@@ -195,11 +232,18 @@ Options:
   program.addCommand(createPortCommand());
   program.addCommand(createServiceCommand());
 
+  // Handle unknown commands - show help suggestion after welcome banner
+  program.on('command:*', () => {
+    console.error(`\x1b[31mError: Unknown command: ${program.args.join(' ')}\x1b[0m`);
+    displayHelpSuggestion();
+    process.exit(1);
+  });
+
   await program.parseAsync(process.argv);
 
-  // If no command is specified, show help
+  // If no command is specified, show help suggestion after welcome banner
   if (!process.argv.slice(2).length) {
-    program.outputHelp();
+    displayHelpSuggestion();
   }
 }
 
