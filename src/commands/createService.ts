@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { toCamelCase, toPascalCase } from '../utils/fileUtils';
+import { toCamelCase, toPascalCase, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 
 // Helper function to find existing domains
@@ -47,6 +47,51 @@ export function createServiceCommand(): Command {
         .option('-d, --domain <domainName>', 'Specify the domain name')
         .option('-p, --path <outputPath>', 'Specify a custom output path')
         .option('-y, --yes', 'Skip prompts and use default options')
+        .hook('preAction', async () => {
+            // Show detailed help with pagination when --help is used
+            if (process.argv.includes('--help')) {
+                const helpContent = `
+Description:
+  Generates a new domain service for implementing business logic.
+  Services encapsulate complex operations and domain rules within
+  a specific bounded context.
+
+Structure Generated:
+  └── src/
+      └── {domainName}/              # Domain root folder
+          └── services/              # Services folder
+              └── {name}Service.ts   # Service implementation
+
+Features:
+  • Domain-driven design services
+  • TypeScript implementation
+  • Port interface integration
+  • Clean architecture patterns
+  • Business logic encapsulation
+
+Examples:
+  $ vss-api-cli create:service UserCreator -d user
+  $ vss-api-cli create:service OrderProcessor --domain order
+  $ vss-api-cli cs ProductCatalogManager -d product
+  $ vss-api-cli create:service PaymentHandler --path src/domains
+
+Additional Information:
+  • Service names are automatically converted to PascalCase
+  • Includes standard TypeScript types
+  • Follows clean architecture principles
+  • Integrates with domain ports
+  • Includes dependency injection setup
+
+Options:
+  -d, --domain <domainName>  Specify the domain name
+  -p, --path <outputPath>    Specify a custom output path
+  -y, --yes                  Skip prompts and use default options
+  -h, --help                Display this help message
+`;
+                await displayWithPagination(helpContent);
+                process.exit(0);
+            }
+        })
         .action(async (name, options) => {
             let domainName = options.domain;
             let proceed = options.yes;
@@ -82,9 +127,9 @@ export function createServiceCommand(): Command {
                 path: options.path || ''
             };
             
-            // Generate and show file preview
+            // Generate and show file preview with pagination
             const filePreview = generateFilePreview(schematicOptions);
-            console.log(filePreview);
+            await displayWithPagination(filePreview);
             
             // Ask for confirmation unless --yes flag is used
             if (!options.yes) {

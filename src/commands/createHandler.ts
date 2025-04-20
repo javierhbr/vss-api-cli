@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
-import { toDasherize } from '../utils/fileUtils';
+import { toDasherize, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 
 /**
@@ -30,10 +30,59 @@ export function createHandlerCommand(): Command {
     const command = new Command('create:handler')
         .alias('ch')
         .description('Generate a new API handler with request schema validation.')
-        .argument('<n>', 'Handler name (e.g., createUser, listProducts)')
-        .option('-s, --schema', 'Generate a schema file for request validation')
-        .option('-p, --path <outputPath>', 'Specify a custom output path')
-        .option('-y, --yes', 'Skip prompts and use default options')
+        .argument('<n>', 'Name of the handler (e.g., createUser, updateOrder)')
+        .option('-p, --path <outputPath>', 'Specify a custom output path for the handler')
+        .option('-s, --schema', 'Generate schema validation files', false)
+        .option('--no-validation', 'Skip schema validation setup')
+        .hook('preAction', async () => {
+            // Show detailed help with pagination when --help is used
+            if (process.argv.includes('--help')) {
+                const helpContent = `
+Description:
+  Creates a new AWS Lambda handler with Middy middleware setup.
+  Includes optional request/response schema validation using JSON Schema,
+  error handling, and proper TypeScript types.
+
+Structure Generated:
+  \`\`\`
+  src/
+  └── handlers/
+      ├── {name}.handler.ts      # Main Lambda handler with Middy setup
+      └── {name}Schema.ts        # JSON Schema validation (if --schema flag used)
+  \`\`\`
+
+Features:
+  • Automatic Middy middleware configuration
+  • JSON Schema validation for request/response
+  • Error handling middleware
+  • Proper TypeScript types
+  • AWS Lambda context typing
+  • Middleware composition
+
+Examples:
+  $ vss-api-cli create:handler createUser
+  $ vss-api-cli create:handler updateOrder --schema
+  $ vss-api-cli create:handler getProduct --path src/functions
+  $ vss-api-cli ch deleteUser --no-validation
+
+Additional Information:
+  • Handlers are created with proper AWS Lambda types
+  • Includes standard middleware for parsing, validation, and error handling
+  • Schema files use JSON Schema format with TypeScript types
+  • All generated code includes JSDoc documentation
+  • Follows AWS Lambda best practices
+  • Includes error handling patterns
+
+Options:
+  -p, --path <outputPath>     Specify a custom output path for the handler
+  -s, --schema               Generate schema validation files
+  --no-validation           Skip schema validation setup
+  -h, --help                Display this help message
+`;
+                await displayWithPagination(helpContent);
+                process.exit(0);
+            }
+        })
         .action(async (name, cmdOptions) => {
             let schema = cmdOptions.schema;
             let proceed = cmdOptions.yes;
@@ -60,7 +109,7 @@ export function createHandlerCommand(): Command {
             
             // Generate and show file preview
             const filePreview = generateFilePreview(schematicOptions);
-            console.log(filePreview);
+            await displayWithPagination(filePreview);
             
             // Ask for confirmation unless --yes flag is used
             if (!cmdOptions.yes) {

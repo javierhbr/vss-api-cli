@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { toCamelCase, toPascalCase } from '../utils/fileUtils';
+import { toCamelCase, toPascalCase, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 
 // Helper function to find existing domains
@@ -58,6 +58,55 @@ export function createPortCommand(): Command {
         .option('-t, --type <adapterType>', 'Specify the adapter type (repository, rest, graphql)')
         .option('-p, --path <outputPath>', 'Specify a custom output path')
         .option('-y, --yes', 'Skip prompts and use default options')
+        .hook('preAction', async () => {
+            // Show detailed help with pagination when --help is used
+            if (process.argv.includes('--help')) {
+                const helpContent = `
+Description:
+  Generates a new domain port interface and its infrastructure adapter implementation.
+  Ports define boundaries between the domain and external systems or persistence.
+  The adapter provides a concrete implementation of the port interface.
+
+Structure Generated:
+  └── src/
+      ├── {domainName}/                # Domain root folder
+      │   └── ports/                   # Port interfaces folder
+      │       └── {portName}.ts        # Port interface definition
+      └── infra/                       # Infrastructure implementations
+          └── {adapterType}/           # Adapter type folder
+              └── {portName}Adapter.ts  # Concrete adapter implementation
+
+Features:
+  • Clean architecture port interfaces
+  • Infrastructure adapter implementations
+  • Type-safe port definitions
+  • Domain-driven design patterns
+  • Pluggable adapter implementations
+
+Examples:
+  $ vss-api-cli create:port UserRepository -d user
+  $ vss-api-cli create:port PaymentGateway -d payment -t rest
+  $ vss-api-cli cp ProductCatalog --domain product --type graphql
+  $ vss-api-cli create:port OrderFinder -d order --path src/domains
+
+Additional Information:
+  • Port names are automatically converted to PascalCase
+  • Adapters include proper TypeScript types
+  • Follows hexagonal architecture principles
+  • Includes dependency injection setup
+  • Supports various adapter implementations
+
+Options:
+  -d, --domain <domainName>  Specify the domain name
+  -t, --type <adapterType>   Specify adapter type (repository, rest, graphql)
+  -p, --path <outputPath>    Specify a custom output path
+  -y, --yes                  Skip prompts and use default options
+  -h, --help                Display this help message
+`;
+                await displayWithPagination(helpContent);
+                process.exit(0);
+            }
+        })
         .action(async (name, options) => {
             let domainName = options.domain;
             let adapterType = options.type;
@@ -107,9 +156,9 @@ export function createPortCommand(): Command {
                 adapterType
             };
 
-            // Generate and show file preview
+            // Generate and show file preview with pagination
             const filePreview = generateFilePreview(schematicOptions);
-            console.log(filePreview);
+            await displayWithPagination(filePreview);
 
             // Ask for confirmation unless --yes flag is used
             if (!options.yes) {

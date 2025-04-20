@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
-import { toCamelCase, toPascalCase, capitalizeFirstLetter } from '../utils/fileUtils';
+import { toCamelCase, toPascalCase, capitalizeFirstLetter, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 
 /**
@@ -55,14 +55,61 @@ function generateFilePreview(options: {
 export function createDomainCommand(): Command {
     const command = new Command('create:domain')
         .alias('cd')
-        .description('Scaffold a new domain with models, services, and ports.')
+        .description(`Scaffold a new domain with models, services, and ports.`)
         .argument('<domainName>', 'Name of the domain (e.g., user, product)')
-        .option('-p, --path <outputPath>', 'Specify a custom output path')
+        .option('-p, --path <outputPath>', 'Specify a custom output path for the domain')
         .option('-y, --yes', 'Skip prompts and use default options')
-        .option('--no-model', 'Skip model generation')
-        .option('--no-service', 'Skip service generation')
-        .option('--no-port', 'Skip port generation')
-        .option('--adapter-type <type>', 'Adapter type (repository, rest, graphql, none)', 'repository')
+        .option('--no-model', 'Skip domain model generation')
+        .option('--no-service', 'Skip domain service generation')
+        .option('--no-port', 'Skip port interface generation')
+        .option('--adapter-type <type>', 'Type of adapter to implement the port (repository, rest, graphql, none)', 'repository')
+        .hook('preAction', async () => {
+            // Show detailed help with pagination when --help is used
+            if (process.argv.includes('--help')) {
+                const helpContent = `
+Description:
+  Creates a complete domain structure following hexagonal architecture principles.
+  This includes the domain model, services for business logic, and ports with adapters
+  for infrastructure integration.
+
+Structure Generated:
+  \`\`\`
+  src/
+  ├── {domainName}/              # Domain root folder
+  │   ├── models/                # Domain models and entities
+  │   ├── ports/                # Port interfaces for external dependencies
+  │   └── services/             # Domain services implementing business logic
+  └── infra/                    # Infrastructure implementations
+      └── {adapterType}/        # Concrete adapter implementations
+  \`\`\`
+
+Examples:
+  $ vss-api-cli create:domain user
+  $ vss-api-cli create:domain payment --path src/domains
+  $ vss-api-cli create:domain product --adapter-type rest
+  $ vss-api-cli create:domain order --no-model --no-port
+
+Additional Information:
+  • Domain names are automatically converted to proper case in generated files
+  • Models use PascalCase (e.g., User)
+  • Services are suffixed with 'Service' (e.g., UserService)
+  • Ports are named based on adapter type (e.g., UserRepositoryPort)
+  • Generated code follows clean architecture principles
+  • All files include TypeScript types and documentation
+
+Options:
+  -p, --path <outputPath>     Specify a custom output path for the domain
+  -y, --yes                   Skip prompts and use default options
+  --no-model                  Skip domain model generation
+  --no-service               Skip domain service generation
+  --no-port                  Skip port interface generation
+  --adapter-type <type>      Type of adapter (repository, rest, graphql, none)
+  -h, --help                 Display this help message
+`;
+                await displayWithPagination(helpContent);
+                process.exit(0);
+            }
+        })
         .action(async (domainName, cmdOptions) => {
             const camelName = toCamelCase(domainName);
             const pascalName = toPascalCase(camelName);
@@ -126,7 +173,7 @@ export function createDomainCommand(): Command {
 
             // Generate and show file preview
             const filePreview = generateFilePreview(schematicOptions);
-            console.log(filePreview);
+            await displayWithPagination(filePreview);
 
             // Ask for confirmation unless --yes flag is used
             let proceed = cmdOptions.yes;

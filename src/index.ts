@@ -6,6 +6,7 @@ import { createDomainCommand } from './commands/createDomain';
 import { createHandlerCommand } from './commands/createHandler';
 import { createPortCommand } from './commands/createPort';
 import { createServiceCommand } from './commands/createService';
+import { displayWithPagination } from './utils/fileUtils';
 
 /**
  * Display a welcome message with ASCII art and action description
@@ -96,22 +97,78 @@ async function main() {
   // Ensure commandName is never undefined
   const { action, description } = getWelcomeMessage(commandName || 'default');
   
-  // Display the welcome message
-  displayWelcomeMessage(action, description);
+  // Only display the welcome message when no help flag is present
+  if (!process.argv.includes('--help') && !process.argv.includes('-h')) {
+    displayWelcomeMessage(action, description);
+  }
   
   program
-    .name('vss-ol-cli')
-    .description('CLI tool for scaffolding Middy-based serverless projects using schematics.')
-    .version('1.0.0');
+    .name('vss-api-cli')
+    .description(`CLI tool for scaffolding Middy-based serverless projects using schematics.`)
+    .version('1.0.0')
+    .hook('preAction', async () => {
+      // Show detailed help with pagination when --help is used on the root command
+      if ((process.argv.includes('--help') || process.argv.includes('-h')) && process.argv.length <= 3) {
+        const helpContent = `
+CLI tool for scaffolding Middy-based serverless projects using schematics.
+    
+🔧 Features:
+  • Create complete domain structures with Hexagonal Architecture
+  • Generate AWS Lambda handlers with Middy middleware
+  • Scaffold ports and adapters for clean architecture
+  • Create domain services with best practices
+  
+📝 Examples:
+  $ vss-api-cli create:domain user
+  $ vss-api-cli create:handler createUser --schema
+  $ vss-api-cli create:port UserRepository -d user
+  $ vss-api-cli create:service UserCreator -d user
 
-  // Command to generate components using schematics
+Available Commands:
+  • create:domain    (cd)  Scaffold a new domain with models, services, and ports
+  • create:handler   (ch)  Generate a new API handler with request schema validation
+  • create:port      (cp)  Create a new port interface and adapter implementation
+  • create:service   (cs)  Generate a new domain service
+  • generate, g           Generate components using schematics
+
+🔧 Environment Variables:
+  OUTPUT_DIR        Set a default output directory for generated files
+  
+⚙️  Configuration:
+  The CLI will look for a vss-api.config.json file in your project root for default settings.
+  
+📚 Documentation:
+  For detailed documentation and guides, visit: https://github.com/yourusername/vss-api-cli
+
+Options:
+  -V, --version              Output the version number
+  -h, --help                Display this help message`;
+
+        await displayWithPagination(helpContent);
+        process.exit(0);
+      }
+    });
+
+  // Command to generate components using schematics with enhanced help
   program
-    .command('generate <schematic> [name]') // e.g., generate handler my-handler
+    .command('generate <schematic> [name]')
     .alias('g')
-    .description('Generate a specific schematic (handler, domain, port, service)')
+    .description(`\x1b[1mGenerate a specific schematic (handler, domain, port, service)\x1b[0m
+    
+\x1b[36m📦 Available Options:\x1b[0m
+  \x1b[33m•\x1b[0m \x1b[1mhandler\x1b[0m  - AWS Lambda handler with Middy middleware
+  \x1b[33m•\x1b[0m \x1b[1mdomain\x1b[0m   - Complete domain structure with models, services, and ports
+  \x1b[33m•\x1b[0m \x1b[1mport\x1b[0m     - Port interface and adapter implementation
+  \x1b[33m•\x1b[0m \x1b[1mservice\x1b[0m  - Domain service class
+    
+\x1b[36m💡 Examples:\x1b[0m
+  \x1b[90m$\x1b[0m vss-api-cli g handler createUser
+  \x1b[90m$\x1b[0m vss-api-cli g domain payment --path src/domains
+  \x1b[90m$\x1b[0m vss-api-cli g port UserRepository --domain user`)
     .option('--dry-run', 'Run through without making any changes')
-    .option('--output-dir <path>', 'Specify output directory for generated code (default: current directory)')
-    .allowUnknownOption() // Allow schematics-specific options
+    .option('--output-dir <path>', 'Specify output directory for generated code')
+    .option('--force', 'Override existing files')
+    .allowUnknownOption()
     .action(async (schematic: string, name: string | undefined, cmdOptions: { dryRun?: boolean, outputDir?: string }) => {
       const cli = new SchematicsCli();
       const schematicArgs = process.argv.slice(process.argv.indexOf(name || schematic) + 1)

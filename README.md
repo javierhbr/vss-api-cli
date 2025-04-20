@@ -6,7 +6,7 @@ A CLI tool for scaffolding Middy-based serverless projects with hexagonal archit
 
 ### Global Installation
 
-```bash
+```bash 
 npm install -g vss-ol-cli
 ```
 
@@ -36,9 +36,9 @@ You can also use the specific creation commands:
 vss-ol-cli create:<component> <name> [options]
 ```
 
-## Available Schematics
+## Commands and Options
 
-### Handler Generator
+### Handler Generator (`create:handler` or `ch`)
 
 Creates a new Middy handler with optional schema validation.
 
@@ -49,19 +49,30 @@ vss-ol-cli ch <name> [options]
 ```
 
 **Options:**
-- `--schema` (`-s`): Generate a Zod schema file for input validation
-- `--path <outputPath>`: Specify a custom output path (default: `src/handlers`)
+- `-p, --path <outputPath>` - Specify a custom output path (default: `src/handlers`)
+- `-s, --schema` - Generate a Zod schema file for input validation
+- `-y, --yes` - Skip confirmation prompts and use default options
+- `--no-validation` - Skip schema validation setup
 
-**Example:**
+**Examples:**
 ```bash
+# Basic handler creation
+vss-ol-cli create:handler createUser
+
+# Handler with schema validation
 vss-ol-cli create:handler createUser --schema
+
+# Handler in custom path with schema
+vss-ol-cli create:handler createUser -p src/functions -s
+
+# Non-interactive creation
+vss-ol-cli create:handler createUser -y
+
+# Handler without validation
+vss-ol-cli create:handler createUser --no-validation
 ```
 
-This creates:
-- `src/handlers/createUser.handler.ts`
-- `src/handlers/createUserSchema.ts` (if --schema is specified)
-
-### Domain Generator
+### Domain Generator (`create:domain` or `cd`)
 
 Creates a new domain with models, services, and ports.
 
@@ -72,56 +83,45 @@ vss-ol-cli cd <domainName> [options]
 ```
 
 **Options:**
-- `--path <outputPath>`: Specify a custom output path (default: `src/<domainName>`)
-- `--yes`: Skip prompts and use default options (useful for scripting)
-- `--no-model`: Skip model generation
-- `--no-service`: Skip service generation
-- `--no-port`: Skip port generation
-- `--adapter-type <type>`: The type of adapter for the port (options: repository, rest, graphql, none; default: repository)
+- `-p, --path <outputPath>` - Specify a custom output path (default: `src/<domainName>`)
+- `-y, --yes` - Skip prompts and use default options
+- `--no-model` - Skip model generation
+- `--no-service` - Skip service generation
+- `--no-port` - Skip port generation
+- `--adapter-type <type>` - Type of adapter (repository, rest, graphql, none)
 
-**Example:**
+**Examples:**
 ```bash
-# Interactive mode
+# Basic domain creation (interactive)
 vss-ol-cli create:domain user
-  
-# Non-interactive with custom path
-vss-ol-cli create:domain payments --path custom-output --yes
-  
-# Custom options
-vss-ol-cli create:domain product --adapter-type=rest --no-model
+
+# Domain with custom path
+vss-ol-cli create:domain payment --path src/domains
+
+# Domain with REST adapter
+vss-ol-cli create:domain product --adapter-type rest
+
+# Domain without model
+vss-ol-cli create:domain order --no-model
+
+# Domain with specific components
+vss-ol-cli create:domain catalog --no-port --no-service
+
+# Non-interactive with defaults
+vss-ol-cli create:domain user -y
+
+# Complete custom setup
+vss-ol-cli create:domain payment --adapter-type graphql --path custom/path --no-model
 ```
 
-This creates:
-- `<outputPath>/src/<domainName>/models/<DomainName>.ts`
-- `<outputPath>/src/<domainName>/ports/<DomainName><AdapterType>Port.ts`
-- `<outputPath>/src/infra/<adapterType>/<DomainName><AdapterType>Adapter.ts`
-- `<outputPath>/src/<domainName>/services/<DomainName>Service.ts`
+### Port Generator (`create:port` or `cp`)
 
-### Port Generator
-
-Creates a new port interface in a domain and its adapter implementation.
+Creates a new port interface and its infrastructure adapter implementation.
 
 ```bash
 vss-ol-cli create:port <name> [options]
 # or
 vss-ol-cli cp <name> [options]
-```
-
-**Options:**
-- `--domain` (`-d`): The domain this port belongs to
-- `--adapterType` (`-t`): The type of adapter that will implement this port (options: repository, rest, graphql; default: repository)
-- `--path <outputPath>`: Specify a custom output path
-
-**Example:**
-```bash
-vss-ol-cli create:port UserFinder -d user -t repository
-```
-
-This creates:
-- `<outputPath>/src/user/ports/UserFinderPort.ts`
-- `<outputPath>/src/infra/repository/UserFinderAdapter.ts`
-
-### Service Generator
 
 Creates a new domain service.
 
