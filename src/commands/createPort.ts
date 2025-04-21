@@ -19,17 +19,34 @@ async function findExistingDomains(): Promise<string[]> {
     }
 }
 
+// Helper function to ensure suffix (copied from schematic for consistency)
+function ensureSuffix(name: string, suffix: string): string {
+  return name.endsWith(suffix) ? name : name + suffix;
+}
+
 /**
  * Generate a preview tree of files that will be created for a port
  */
 function generateFilePreview(options: {
-  name: string,
+  name: string, // Raw name like PaymentsV3
   domain: string,
   path?: string,
-  adapterType: string
+  adapterType: string,
+  portInterfaceName?: string // Optional custom name
 }): string {
-  const { name, domain, path: outputPath = '', adapterType } = options;
-  const portName = toPascalCase(name);
+  const { name: rawName, domain, path: outputPath = '', adapterType, portInterfaceName: customPortName } = options;
+  
+  // Determine final port name (ensure suffix)
+  let finalPortName: string;
+  if (customPortName) {
+    finalPortName = ensureSuffix(toPascalCase(customPortName), 'Port');
+  } else {
+    finalPortName = `${toPascalCase(rawName)}Port`; // Default naming
+  }
+
+  // Determine final adapter name (include type)
+  const finalAdapterName = `${toPascalCase(rawName)}${toPascalCase(adapterType)}Adapter`;
+
   const domainName = toCamelCase(domain);
   const basePath = outputPath ? `${outputPath}/` : '';
   
@@ -38,12 +55,12 @@ function generateFilePreview(options: {
   
   // Port interface
   preview += `\x1b[36m├── ${domainName}/ports/\x1b[0m\n`;
-  preview += `\x1b[32m│   └── ${portName}.ts\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
+  preview += `\x1b[32m│   └── ${finalPortName}.ts\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
   
   // Adapter implementation
-  if (adapterType !== 'none') {
+  if (adapterType !== 'none') { // Assuming 'none' might be an option later
     preview += `\x1b[36m└── infra/${adapterType}/\x1b[0m\n`;
-    preview += `\x1b[32m    └── ${portName}Adapter.ts\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`;
+    preview += `\x1b[32m    └── ${finalAdapterName}.ts\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`;
   }
   
   return preview;
@@ -167,15 +184,16 @@ Options:
             domainName = toCamelCase(domainName);
             const portName = toPascalCase(name);
 
-            // Generate options for the schematic
+            // Generate options for the schematic (pass custom name if provided)
             const schematicOptions = {
-                name: portName,
+                name: portName, // Use the raw name for schematic logic
                 domain: domainName,
                 path: options.path || '',
-                adapterType
+                adapterType,
+                portInterfaceName: options.portInterfaceName // Pass custom name if provided
             };
 
-            // Generate and show file preview with pagination
+            // Generate and show file preview with pagination using the same options
             const filePreview = generateFilePreview(schematicOptions);
             await displayWithPagination(filePreview);
 

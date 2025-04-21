@@ -9,6 +9,11 @@ import * as path from 'path';
 // Removed unused dasherize
 const { classify, camelize } = strings;
 
+// Helper function to ensure suffix
+function ensureSuffix(name: string, suffix: string): string {
+  return name.endsWith(suffix) ? name : name + suffix;
+}
+
 export default function (options: PortOptions): Rule {
   return async (tree: Tree, context: SchematicContext) => {
     if (!options.name) {
@@ -25,9 +30,16 @@ export default function (options: PortOptions): Rule {
     // Handle custom output directory
     const basePath = options.path || '';
 
-    // Use the custom port interface name if provided, otherwise use the default pattern
-    const portName = options.portInterfaceName || `${classify(portNameRaw)}Port`; // e.g., UserFinderPort or custom name
-    const adapterName = `${classify(portNameRaw)}Adapter`; // e.g., UserFinderAdapter
+    // Determine the final port interface name, ensuring 'Port' suffix
+    let finalPortName: string;
+    if (options.portInterfaceName) {
+      finalPortName = ensureSuffix(classify(options.portInterfaceName), 'Port');
+    } else {
+      finalPortName = `${classify(portNameRaw)}Port`; // Default naming
+    }
+
+    // Generate adapter name including the adapter type
+    const adapterName = `${classify(portNameRaw)}${classify(adapterType)}Adapter`; // e.g., UserFinderRepositoryAdapter, LegacyPaymentQueueAdapter
 
     const domainPath = path.join(basePath, `src/${domainName}`);
     const infraPath = path.join(basePath, `src/infra/${adapterType}`);
@@ -35,26 +47,28 @@ export default function (options: PortOptions): Rule {
     // --- Port Interface Generation ---
     const portTemplateSource = apply(url('./files'), [
       // Filter to only include port template file
-      filter(path => path.includes('__portName@classify__')),
+      filter(path => path.includes('__portName@classify__')), // Template filename uses placeholder
       applyTemplates({
         ...strings,
         name: portNameRaw, // Pass the raw name for potential use
-        portName: portName, // Pass the generated interface name
+        portName: finalPortName, // Pass the final generated interface name
       }),
+      // Move to the target directory. applyTemplates handles renaming based on filename placeholders.
       move(path.join(domainPath, 'ports')),
     ]);
 
     // --- Adapter Implementation Generation ---
     const adapterTemplateSource = apply(url('./files'), [
       // Filter to only include adapter template file
-      filter(path => path.includes('__adapterName@classify__')),
+      filter(path => path.includes('__adapterName@classify__')), // Template filename uses placeholder
       applyTemplates({
         ...strings,
         name: portNameRaw, // Pass the raw name
-        adapterName: adapterName,
-        portName: portName, // The interface it implements
+        adapterName: adapterName, // Pass the final adapter name
+        portName: finalPortName, // The interface it implements
         domainName: domainName,
       }),
+       // Move to the target directory. applyTemplates handles renaming based on filename placeholders.
       move(infraPath),
     ]);
 

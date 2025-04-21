@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/schema",
-  "$id": "SchematicsNestPort",
-  "title": "Nest Port Options Schema",
+  "$id": "SchematicsVssApiPort",
+  "title": "VSS API Port Options Schema",
   "type": "object",
   "properties": {
     "name": {
@@ -23,13 +23,13 @@
     "adapterType": {
       "type": "string",
       "description": "The type of adapter that will implement this port.",
-      "enum": ["repository", "rest", "graphql"],
+      "enum": ["repository", "rest", "graphql", "queue", "cache", "storage"],
       "alias": "t",
       "default": "repository",
       "x-prompt": {
         "message": "What type of adapter will implement this port?",
         "type": "list",
-        "items": ["repository", "rest", "graphql"]
+        "items": ["repository", "rest", "graphql", "queue", "cache", "storage"]
       }
     },
     "path": {
