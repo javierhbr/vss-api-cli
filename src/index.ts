@@ -21,13 +21,12 @@ function displayWelcomeMessage(action: string, description?: string): void {
   __     __   ______    ______          ______   _______   ______         ______   __        ______ 
   /  |   /  | /      \  /      \        /      \ /       \ /      |       /      \ /  |      /      |
   $$ |   $$ |/$$$$$$  |/$$$$$$  |      /$$$$$$  |$$$$$$$  |$$$$$$/       /$$$$$$  |$$ |      $$$$$$/ 
-  $$ |   $$ |$$ \__$$/ $$ \__$$/       $$ |__$$ |$$ |__$$ |  $$ |        $$ |  $$/ $$ |        $$ |  
-  $$  \ /$$/ $$      \ $$      \       $$    $$ |$$    $$/   $$ |        $$ |      $$ |        $$ |  
+  $$ |   $$ |$$ \__$$/ $$ \__$$/         $$ |__$$ |$$ |__$$ |  $$ |        $$ |  $$/ $$ |        $$ |  
+  $$  \ /$$/ $$      \ $$      \          $$    $$ |$$    $$/   $$ |        $$ |      $$ |        $$ |  
    $$  /$$/   $$$$$$  | $$$$$$  |      $$$$$$$$ |$$$$$$$/    $$ |        $$ |   __ $$ |        $$ |  
-    $$ $$/   /  \__$$ |/  \__$$ |      $$ |  $$ |$$ |       _$$ |_       $$ \__/  |$$ |_____  _$$ |_ 
+    $$ $$/   /  \__$$ |/  \__$$ |        $$ |  $$ |$$ |       _$$ |_       $$ \__/  |$$ |_____  _$$ |_ 
      $$$/    $$    $$/ $$    $$/       $$ |  $$ |$$ |      / $$   |      $$    $$/ $$       |/ $$   |
       $/      $$$$$$/   $$$$$$/        $$/   $$/ $$/       $$$$$$/        $$$$$$/  $$$$$$$$/ $$$$$$/ 
-                                                                                                     
                                                                                                      
                                                                                                      
   `;
@@ -199,9 +198,9 @@ Options:
   \x1b[33m•\x1b[0m \x1b[1mservice\x1b[0m  - Domain service class
     
 \x1b[36m💡 Examples:\x1b[0m
-  \x1b[90m$\x1b[0m vss-api-cli g handler createUser
-  \x1b[90m$\x1b[0m vss-api-cli g domain payment --path src/domains
-  \x1b[90m$\x1b[0m vss-api-cli g port UserRepository --domain user`)
+  \x1b[90m$\x1b[0m vss-api-cli create:handler createUser
+  \x1b[90m$\x1b[0m vss-api-cli create:domain payment --path src/domains
+  \x1b[90m$\x1b[0m vss-api-cli create:port UserRepository --domain user`)
     .option('--dry-run', 'Run through without making any changes')
     .option('--output-dir <path>', 'Specify output directory for generated code')
     .option('--force', 'Override existing files')

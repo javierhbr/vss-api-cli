@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import { toCamelCase, toPascalCase, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
+import { createDomainCommand } from './createDomain';
 
 // Helper function to find existing domains
 async function findExistingDomains(): Promise<string[]> {
@@ -64,6 +65,44 @@ function generateFilePreview(options: {
   }
   
   return preview;
+}
+
+// Helper function to create a new domain and return its name
+async function createNewDomain(options: { portName: string, path?: string }): Promise<string | null> {
+  try {
+    console.log('\n📂 Creating a new domain for your port...');
+    
+    // Get the domain command instance
+    const domainCmd = createDomainCommand();
+    
+    // Prompt for domain name
+    const domainAnswer = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'domainName',
+        message: 'Enter a name for the new domain:',
+        validate: (input: string) => input.trim() !== '' || 'Domain name cannot be empty'
+      }
+    ]);
+    
+    // Set up process arguments to pass to the domain command
+    const domainName = domainAnswer.domainName;
+    const args = ['create:domain', domainName];
+    
+    // Add path option if specified
+    if (options.path) {
+      args.push('--path', options.path);
+    }
+    
+    // Execute the domain command programmatically
+    await domainCmd.parseAsync([process.argv[0], process.argv[1], ...args], { from: 'user' });
+    
+    console.log(`\n✅ Domain "${domainName}" created. Now continuing with port creation...\n`);
+    return domainName;
+  } catch (error) {
+    console.error('Failed to create domain:', error);
+    return null;
+  }
 }
 
 export function createPortCommand(): Command {
@@ -152,21 +191,52 @@ Options:
 
             // Prompt for domain if not provided
             if (!domainName && existingDomains.length > 0) {
+                const CREATE_NEW_DOMAIN = '+ Create new domain...';
                 const domainAnswer = await inquirer.prompt({
                     type: 'list',
                     name: 'domainName',
                     message: 'Which domain does this port belong to?',
-                    choices: existingDomains,
+                    choices: [...existingDomains, new inquirer.Separator(), CREATE_NEW_DOMAIN],
                 });
-                domainName = domainAnswer.domainName;
+                
+                // Handle the option to create a new domain
+                if (domainAnswer.domainName === CREATE_NEW_DOMAIN) {
+                    const newDomainName = await createNewDomain({ portName: name, path: options.path });
+                    if (newDomainName) {
+                        domainName = newDomainName;
+                    } else {
+                        console.log('Domain creation cancelled or failed. Port creation process will now exit.');
+                        return;
+                    }
+                } else {
+                    domainName = domainAnswer.domainName;
+                }
             } else if (!domainName) {
-                const domainAnswer = await inquirer.prompt({
-                    type: 'input',
-                    name: 'domainName',
-                    message: 'Enter the domain name for this port (e.g., user, product, order):',
-                    validate: (input: string) => input.trim() !== '' || 'Domain name cannot be empty.',
+                // Prompt specifically asking if they want to create a new domain or enter one
+                const domainTypeAnswer = await inquirer.prompt({
+                    type: 'list',
+                    name: 'domainType',
+                    message: 'No existing domains found. What would you like to do?',
+                    choices: ['Create a new domain', 'Enter domain name manually']
                 });
-                domainName = domainAnswer.domainName;
+                
+                if (domainTypeAnswer.domainType === 'Create a new domain') {
+                    const newDomainName = await createNewDomain({ portName: name, path: options.path });
+                    if (newDomainName) {
+                        domainName = newDomainName;
+                    } else {
+                        console.log('Domain creation cancelled or failed. Port creation process will now exit.');
+                        return;
+                    }
+                } else {
+                    const domainAnswer = await inquirer.prompt({
+                        type: 'input',
+                        name: 'domainName',
+                        message: 'Enter the domain name for this port (e.g., user, product, order):',
+                        validate: (input: string) => input.trim() !== '' || 'Domain name cannot be empty.',
+                    });
+                    domainName = domainAnswer.domainName;
+                }
             }
 
             // Prompt for adapter type if not provided
