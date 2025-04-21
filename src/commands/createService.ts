@@ -27,14 +27,15 @@ function generateFilePreview(options: {
   domain: string,
   path?: string
 }): string {
-  const { name, domain, path: outputPath = '' } = options;
-  const serviceName = toPascalCase(name);
+  const { name, domain, path: basePath = '.' } = options;
+  const serviceName = `${toPascalCase(name)}Service`;
   const domainName = toCamelCase(domain);
-  const basePath = outputPath ? `${outputPath}/` : '';
-  
+  const previewBasePath = basePath === '.' ? '' : `${basePath}/`;
+  const srcPreviewPath = `${previewBasePath}src`;
+
   let preview = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
-  preview += `\x1b[36m${basePath}src/${domainName}/services/\x1b[0m\n`;
-  preview += `\x1b[32m└── ${serviceName}Service.ts\x1b[0m \x1b[90m- Service implementation\x1b[0m\n`;
+  preview += `\x1b[36m${srcPreviewPath}/${domainName}/services/\x1b[0m\n`;
+  preview += `\x1b[32m└── ${serviceName}.ts\x1b[0m \x1b[90m- Service implementation\x1b[0m\n`;
   
   return preview;
 }
@@ -43,9 +44,9 @@ export function createServiceCommand(): Command {
     const command = new Command('create:service')
         .alias('cs')
         .description('Generate a new domain service.')
-        .argument('<n>', 'Service name (e.g., UserAuthenticator, OrderProcessor, ProductCatalogManager, PaymentTransactionHandler, EmailNotifier, ReportGenerator, DataAnalyzer, InventoryManager)')
+        .argument('<name>', 'Service name (e.g., UserCreator, ProductFinder)')
         .option('-d, --domain <domainName>', 'Specify the domain name')
-        .option('-p, --path <outputPath>', 'Specify a custom output path')
+        .option('-p, --path <outputPath>', 'Specify a custom base output path')
         .option('-y, --yes', 'Skip prompts and use default options')
         .hook('preAction', async () => {
             // Show detailed help with pagination when --help is used
@@ -109,6 +110,7 @@ Options:
         .action(async (name, options) => {
             let domainName = options.domain;
             let proceed = options.yes;
+            const basePath = options.path || '.'; // Get base path or default
 
             const existingDomains = await findExistingDomains();
 
@@ -138,11 +140,15 @@ Options:
             const schematicOptions = {
                 name: serviceName,
                 domain: domainName,
-                path: options.path || ''
+                path: basePath // Pass base path to schematic
             };
             
             // Generate and show file preview with pagination
-            const filePreview = generateFilePreview(schematicOptions);
+            const filePreview = generateFilePreview({
+                name: serviceName,
+                domain: domainName,
+                path: basePath
+            });
             await displayWithPagination(filePreview);
             
             // Ask for confirmation unless --yes flag is used

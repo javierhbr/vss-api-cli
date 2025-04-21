@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
-import { toDasherize, displayWithPagination } from '../utils/fileUtils';
+import { toPascalCase, toDasherize, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 
 /**
@@ -11,16 +11,16 @@ function generateFilePreview(options: {
   path?: string,
   schema?: boolean
 }): string {
-  const { name, path: outputPath = '', schema = false } = options;
-  const dashedName = toDasherize(name);
-  const basePath = outputPath ? `${outputPath}/` : '';
-  
+  const { name, path: basePath = '.', schema } = options;
+  const handlerName = toDasherize(name);
+  const previewBasePath = basePath === '.' ? '' : `${basePath}/`;
+  const srcPreviewPath = `${previewBasePath}src`;
+
   let preview = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
-  preview += `\x1b[36m${basePath}src/handlers/\x1b[0m\n`;
-  preview += `\x1b[32m└── ${dashedName}.handler.ts\x1b[0m \x1b[90m- API handler function\x1b[0m\n`;
-  
+  preview += `\x1b[36m${srcPreviewPath}/handlers/\x1b[0m\n`;
+  preview += `\x1b[32m├── ${handlerName}.handler.ts\x1b[0m \x1b[90m- Handler function\x1b[0m\n`;
   if (schema) {
-    preview += `\x1b[32m└── ${dashedName}Schema.ts\x1b[0m \x1b[90m- Request validation schema\x1b[0m\n`;
+    preview += `\x1b[32m└── ${toPascalCase(name)}Schema.ts\x1b[0m \x1b[90m- Validation schema\x1b[0m\n`;
   }
   
   return preview;
@@ -29,11 +29,12 @@ function generateFilePreview(options: {
 export function createHandlerCommand(): Command {
     const command = new Command('create:handler')
         .alias('ch')
-        .description('Generate a new API handler with request schema validation.')
-        .argument('<n>', 'Name of the handler (e.g., createUser, getUserById, processPayment, searchProducts)')
-        .option('-p, --path <outputPath>', 'Specify a custom output path for the handler')
-        .option('-s, --schema', 'Generate schema validation files', false)
+        .description('Generate a new API handler.')
+        .argument('<name>', 'Handler name (e.g., createUser, getProduct)')
+        .option('-p, --path <outputPath>', 'Specify a custom base output path')
+        .option('-s, --schema', 'Generate schema validation files')
         .option('--no-validation', 'Skip schema validation setup')
+        .option('-y, --yes', 'Skip prompts and use default options')
         .hook('preAction', async () => {
             // Show detailed help with pagination when --help is used
             if (process.argv.includes('--help')) {
@@ -83,36 +84,27 @@ Options:
                 process.exit(0);
             }
         })
-        .action(async (name, cmdOptions) => {
-            let schema = cmdOptions.schema;
-            let proceed = cmdOptions.yes;
-            
-            // Only prompt for schema if not specified and not in non-interactive mode
-            if (schema === undefined && !cmdOptions.yes) {
-                const answers = await inquirer.prompt([
-                    {
-                        type: 'confirm',
-                        name: 'schema',
-                        message: 'Generate a schema file for request validation (e.g., for createUser, getProduct handlers)?',
-                        default: false,
-                    }
-                ]);
-                schema = answers.schema;
-            }
+        .action(async (name, options) => {
+            let proceed = options.yes;
+            const schemaRequested = options.schema && !options.noValidation;
+            const basePath = options.path || '.'; // Get base path or default
 
-            // Generate options for the schematic
             const schematicOptions = {
-                name,
-                path: cmdOptions.path || '',
-                schema
+                name: name,
+                path: basePath, // Pass base path to schematic
+                noValidation: !schemaRequested
             };
-            
+
             // Generate and show file preview
-            const filePreview = generateFilePreview(schematicOptions);
+            const filePreview = generateFilePreview({
+                name: name,
+                path: basePath,
+                schema: schemaRequested
+            });
             await displayWithPagination(filePreview);
-            
+
             // Ask for confirmation unless --yes flag is used
-            if (!cmdOptions.yes) {
+            if (!options.yes) {
                 const confirmAnswer = await inquirer.prompt([
                     {
                         type: 'confirm',
@@ -127,11 +119,11 @@ Options:
             // Proceed with file generation if confirmed
             if (proceed) {
                 try {
-                    console.log(`\nGenerating handler ${name}...`);
+                    console.log(`Generating handler ${toDasherize(name)}...`);
                     await runSchematic('handler', schematicOptions);
-                    console.log('\x1b[32m✓\x1b[0m ⏱️ Handler created. We just saved you 37 clicks and 2 existential crises.!');
+                    console.log('✅ Handler created successfully!');
                 } catch (error) {
-                    console.error('\x1b[31m✗\x1b[0m We tried. The handler said “nah.”:', error);
+                    console.error('Error generating handler:', error);
                 }
             } else {
                 console.log('\nOperation cancelled. No files were created.');

@@ -1,39 +1,36 @@
 import { strings } from '@angular-devkit/core';
 import {
   Rule, SchematicsException, apply, applyTemplates, chain,
-  filter, mergeWith, move, noop, url
+  filter, mergeWith, move, noop, url, Tree, SchematicContext
 } from '@angular-devkit/schematics';
-import { Schema as HandlerOptions } from './schema'; // Assuming schema.d.ts will be created
+import { Schema } from './schema';
 import * as path from 'path';
 
-// Removed unused dasherize
-const { classify, camelize } = strings;
+// We don't need to destructure strings here as we're using the entire object in applyTemplates
+export default function (options: Schema): Rule {
+  return async (_tree: Tree, _context: SchematicContext) => {
+    if (!options.name) {
+      throw new SchematicsException('Option (name) is required.');
+    }
 
-export default function (options: HandlerOptions): Rule {
-  if (!options.name) {
-    throw new SchematicsException('Option (name) is required.');
-  }
+    const handlerName = options.name;
+    const basePath = options.path || '.'; // Use provided path or default to current directory
+    const srcRoot = path.join(basePath, 'src'); // Define the source root
+    const handlerPath = path.join(srcRoot, 'handlers'); // Target path relative to srcRoot
 
-  const name = options.name;
-  // Properly handle base path - use options.path if provided
-  const basePath = options.path || '';
-  const targetPath = path.join(basePath, 'src/handlers');
+    const templateSource = apply(url('./files'), [
+      // Only include schema file if schema option is true
+      options.schema === false ? filter(path => !path.endsWith('Schema.ts.template')) : noop(),
+      applyTemplates({
+        ...strings,
+        name: handlerName,
+        // Add any other template variables needed
+      }),
+      move(handlerPath), // Move to the correct path under srcRoot
+    ]);
 
-  const templateSource = apply(url('./files'), [
-    options.schema ? noop() : filter(path => !path.endsWith('Schema.ts.template')), // Filter out schema if not requested
-    applyTemplates({
-      ...strings, // Provides dasherize, classify, camelize, etc.
-      name: name,
-      handlerName: camelize(name),
-      serviceName: camelize(name), // Assuming service name matches handler name for now
-      schemaName: `${camelize(name)}Schema`,
-      typeName: `${classify(name)}Payload`,
-      domainName: 'unknown', // Placeholder - needs better logic if handler is domain-specific
-    }),
-    move(targetPath),
-  ]);
-
-  return chain([
-    mergeWith(templateSource)
-  ]);
+    return chain([
+      mergeWith(templateSource)
+    ]);
+  };
 }

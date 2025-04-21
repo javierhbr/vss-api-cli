@@ -34,7 +34,6 @@
     },
     "path": {
       "type": "string",
-      "format": "path",
       "description": "The path to create the port files.",
       "visible": false
     },
