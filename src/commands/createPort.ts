@@ -36,12 +36,12 @@ function generateFilePreview(options: {
 }): string {
   const { name: rawName, domain, path: outputPath = '', adapterType, portInterfaceName: customPortName } = options;
   
-  // Determine final port name (ensure suffix)
+  // Determine final port name (ensure suffix, NO adapter type)
   let finalPortName: string;
   if (customPortName) {
     finalPortName = ensureSuffix(toPascalCase(customPortName), 'Port');
   } else {
-    finalPortName = `${toPascalCase(rawName)}Port`; // Default naming
+    finalPortName = `${toPascalCase(rawName)}Port`; // Default naming: <Name>Port
   }
 
   // Determine final adapter name (include type)
