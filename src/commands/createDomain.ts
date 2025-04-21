@@ -287,7 +287,7 @@ Options:
 
                 // Generate and show file preview
                 const filePreview = generateFilePreview(schematicOptions);
-                await displayWithPagination(filePreview);
+                await displayWithPagination(`\n🔹 Create a Domain: ${finalDomainName}\n${filePreview}`);
 
                 // Ask for confirmation unless --yes flag is used
                 let proceed = skipPrompts;

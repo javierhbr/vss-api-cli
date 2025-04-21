@@ -265,7 +265,7 @@ Options:
 
             // Generate and show file preview with pagination using the same options
             const filePreview = generateFilePreview(schematicOptions);
-            await displayWithPagination(filePreview);
+            await displayWithPagination(`\n🔹 Create a Port: ${portName}Port for domain ${domainName}\n${filePreview}`);
 
             // Ask for confirmation unless --yes flag is used
             if (!options.yes) {

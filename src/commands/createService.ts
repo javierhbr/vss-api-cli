@@ -149,7 +149,7 @@ Options:
                 domain: domainName,
                 path: basePath
             });
-            await displayWithPagination(filePreview);
+            await displayWithPagination(`\n🔹 Create a Service: ${serviceName}Service for domain ${domainName}\n${filePreview}`);
             
             // Ask for confirmation unless --yes flag is used
             if (!options.yes) {
