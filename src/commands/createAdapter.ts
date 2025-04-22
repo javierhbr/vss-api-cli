@@ -1,4 +1,3 @@
-// filepath: /Users/javierbenavides/others/dev/poc/vss-ol-cli/src/commands/createAdapter.ts
 import { Command } from 'commander';
 import inquirer from 'inquirer';
 import * as path from 'path';
@@ -185,9 +184,15 @@ export function createAdapterCommand(): Command {
                     }
                 );
 
-                console.log(`\n\x1b[32m✓ Adapter '${toPascalCase(name)}${toPascalCase(options.type || 'repository')}Adapter' created successfully!\x1b[0m`);
-            } catch (error) {
-                console.error('\x1b[31mError creating adapter:', (error as Error).message, '\x1b[0m');
+                console.log(`\n\x1b[32m✅ Adapter '${toPascalCase(name)}${toPascalCase(options.type || 'repository')}Adapter' created successfully! 🔌\x1b[0m`);
+            } catch (error: any) {
+                if (error && error.name === 'ExitPromptError') {
+                    console.log('\n👋 Mission aborted! The user yeeted the command into the void. Farewell, brave keystroke warrior! 🫡💥');
+                    process.exit(0);
+                } else {
+                    console.error('\n\x1b[31mError creating adapter:', (error as Error).message, '\x1b[0m');
+                    process.exit(1);
+                }
             }
         });
 

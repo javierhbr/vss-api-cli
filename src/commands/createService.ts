@@ -109,91 +109,101 @@ Options:
             }
         })
         .action(async (name, options) => {
-            let domainName = options.domain;
-            let proceed = options.yes;
-            const basePath = options.path || '.'; // Get base path or default
+            try {
+                let domainName = options.domain;
+                let proceed = options.yes;
+                const basePath = options.path || '.';
 
-            const existingDomains = await findExistingDomains();
+                const existingDomains = await findExistingDomains();
 
-            // Prompt for domain if not provided
-            if (!domainName && existingDomains.length > 0) {
-                const CREATE_NEW_DOMAIN = 'new domain?';
-                const domainAnswer = await inquirer.prompt({
-                    type: 'list',
-                    name: 'domainName',
-                    message: 'Which domain does this service belong to?',
-                    choices: [...existingDomains, new inquirer.Separator(), CREATE_NEW_DOMAIN],
-                });
-                
-                if (domainAnswer.domainName === CREATE_NEW_DOMAIN) {
-                    const newDomainName = await createDomainInteractively({ 
-                        path: basePath !== '.' ? basePath : '',
-                        message: 'Enter a name for the new domain:',
-                        showHeader: true
+                // Prompt for domain if not provided
+                if (!domainName && existingDomains.length > 0) {
+                    const CREATE_NEW_DOMAIN = 'new domain?';
+                    const domainAnswer = await inquirer.prompt({
+                        type: 'list',
+                        name: 'domainName',
+                        message: 'Which domain does this service belong to?',
+                        choices: [...existingDomains, new inquirer.Separator(), CREATE_NEW_DOMAIN],
                     });
                     
-                    if (newDomainName) {
-                        console.log(`\n✅ Domain "${newDomainName}" created. Now continuing with service creation...\n`);
-                        domainName = newDomainName;
+                    if (domainAnswer.domainName === CREATE_NEW_DOMAIN) {
+                        const newDomainName = await createDomainInteractively({ 
+                            path: basePath !== '.' ? basePath : '',
+                            message: 'Enter a name for the new domain:',
+                            showHeader: true
+                        });
+                        
+                        if (newDomainName) {
+                            console.log(`\n✅ Domain "${newDomainName}" created. Now continuing with service creation...\n`);
+                            domainName = newDomainName;
+                        } else {
+                            console.log('Domain creation cancelled or failed. Service creation process will now exit.');
+                            return;
+                        }
                     } else {
-                        console.log('Domain creation cancelled or failed. Service creation process will now exit.');
-                        return;
+                        domainName = domainAnswer.domainName;
                     }
-                } else {
+                } else if (!domainName) {
+                    const domainAnswer = await inquirer.prompt({
+                        type: 'input',
+                        name: 'domainName',
+                        message: 'Enter the domain name for this service (e.g., user, order, product):',
+                        validate: (input: string) => input.trim() !== '' || 'Domain name cannot be empty.',
+                    });
                     domainName = domainAnswer.domainName;
                 }
-            } else if (!domainName) {
-                const domainAnswer = await inquirer.prompt({
-                    type: 'input',
-                    name: 'domainName',
-                    message: 'Enter the domain name for this service (e.g., user, order, product):',
-                    validate: (input: string) => input.trim() !== '' || 'Domain name cannot be empty.',
+
+                domainName = toCamelCase(domainName);
+                const serviceName = toPascalCase(name);
+
+                // Generate options for the schematic
+                const schematicOptions = {
+                    name: serviceName,
+                    domain: domainName,
+                    path: basePath // Pass base path to schematic
+                };
+                
+                // Generate and show file preview with pagination
+                const filePreview = generateFilePreview({
+                    name: serviceName,
+                    domain: domainName,
+                    path: basePath
                 });
-                domainName = domainAnswer.domainName;
-            }
-
-            domainName = toCamelCase(domainName);
-            const serviceName = toPascalCase(name);
-
-            // Generate options for the schematic
-            const schematicOptions = {
-                name: serviceName,
-                domain: domainName,
-                path: basePath // Pass base path to schematic
-            };
-            
-            // Generate and show file preview with pagination
-            const filePreview = generateFilePreview({
-                name: serviceName,
-                domain: domainName,
-                path: basePath
-            });
-            await displayWithPagination(`\n🔹 Create a Service: ${serviceName}Service for domain ${domainName}\n${filePreview}`);
-            
-            // Ask for confirmation unless --yes flag is used
-            if (!options.yes) {
-                const confirmAnswer = await inquirer.prompt([
-                    {
-                        type: 'confirm',
-                        name: 'proceed',
-                        message: 'Do you want to create these files?',
-                        default: true,
-                    }
-                ]);
-                proceed = confirmAnswer.proceed;
-            }
-
-            // Proceed with file generation if confirmed
-            if (proceed) {
-                try {
-                    console.log(`\nGenerating service ${serviceName}Service for domain ${domainName}...`);
-                    await runSchematic('service', schematicOptions);
-                    console.log('\x1b[32m✓\x1b[0m ⏱️ Service created. We just saved you 37 clicks and 2 existential crises!');
-                } catch (error) {
-                    console.error('\x1b[31m✗\x1b[0m We tried. The service said “nah.”:', error);
+                await displayWithPagination(`\n🔹 Create a Service: ${serviceName}Service for domain ${domainName}\n${filePreview}`);
+                
+                // Ask for confirmation unless --yes flag is used
+                if (!options.yes) {
+                    const confirmAnswer = await inquirer.prompt([
+                        {
+                            type: 'confirm',
+                            name: 'proceed',
+                            message: 'Do you want to create these files?',
+                            default: true,
+                        }
+                    ]);
+                    proceed = confirmAnswer.proceed;
                 }
-            } else {
-                console.log('\nOperation cancelled. No files were created.');
+
+                // Proceed with file generation if confirmed
+                if (proceed) {
+                    try {
+                        console.log(`Generating service ${name}...`);
+                        await runSchematic('service', schematicOptions);
+                        console.log('\x1b[32m✅ Service created successfully! ⚡\x1b[0m');
+                    } catch (error) {
+                        console.error('Error generating service:', error);
+                    }
+                } else {
+                    console.log('\nOperation cancelled. No files were created.');
+                }
+            } catch (error: any) {
+                if (error && error.name === 'ExitPromptError') {
+                    console.log('\n👋 Mission aborted! The user yeeted the command into the void. Farewell, brave keystroke warrior! 🫡💥');
+                    process.exit(0);
+                } else {
+                    console.error('\n\x1b[31mAn unexpected error occurred:\x1b[0m', error);
+                    process.exit(1);
+                }
             }
         });
 

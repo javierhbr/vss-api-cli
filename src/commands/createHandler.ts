@@ -85,48 +85,58 @@ Options:
             }
         })
         .action(async (name, options) => {
-            let proceed = options.yes;
-            const schemaRequested = options.schema && !options.noValidation;
-            const basePath = options.path || '.'; // Get base path or default
+            try {
+                let proceed = options.yes;
+                const schemaRequested = options.schema && !options.noValidation;
+                const basePath = options.path || '.'; // Get base path or default
 
-            const schematicOptions = {
-                name: name,
-                path: basePath, // Pass base path to schematic
-                noValidation: !schemaRequested
-            };
+                const schematicOptions = {
+                    name: name,
+                    path: basePath, // Pass base path to schematic
+                    noValidation: !schemaRequested
+                };
 
-            // Generate and show file preview
-            const filePreview = generateFilePreview({
-                name: name,
-                path: basePath,
-                schema: schemaRequested
-            });
-            await displayWithPagination(`\n🔹 Create a Handler: ${toDasherize(name)}\n${filePreview}`);
+                // Generate and show file preview
+                const filePreview = generateFilePreview({
+                    name: name,
+                    path: basePath,
+                    schema: schemaRequested
+                });
+                await displayWithPagination(`\n🔹 Create a Handler: ${toDasherize(name)}\n${filePreview}`);
 
-            // Ask for confirmation unless --yes flag is used
-            if (!options.yes) {
-                const confirmAnswer = await inquirer.prompt([
-                    {
-                        type: 'confirm',
-                        name: 'proceed',
-                        message: 'Do you want to create these files?',
-                        default: true,
-                    }
-                ]);
-                proceed = confirmAnswer.proceed;
-            }
-
-            // Proceed with file generation if confirmed
-            if (proceed) {
-                try {
-                    console.log(`Generating handler ${toDasherize(name)}...`);
-                    await runSchematic('handler', schematicOptions);
-                    console.log('\x1b[32m✅ Handler created successfully! 🚀\x1b[0m');
-                } catch (error) {
-                    console.error('Error generating handler:', error);
+                // Ask for confirmation unless --yes flag is used
+                if (!options.yes) {
+                    const confirmAnswer = await inquirer.prompt([
+                        {
+                            type: 'confirm',
+                            name: 'proceed',
+                            message: 'Do you want to create these files?',
+                            default: true,
+                        }
+                    ]);
+                    proceed = confirmAnswer.proceed;
                 }
-            } else {
-                console.log('\nOperation cancelled. No files were created.');
+
+                // Proceed with file generation if confirmed
+                if (proceed) {
+                    try {
+                        console.log(`Generating handler ${toDasherize(name)}...`);
+                        await runSchematic('handler', schematicOptions);
+                        console.log('\x1b[32m✅ Handler created successfully! 🚀\x1b[0m');
+                    } catch (error) {
+                        console.error('Error generating handler:', error);
+                    }
+                } else {
+                    console.log('\nOperation cancelled. No files were created.');
+                }
+            } catch (error: any) {
+                if (error && error.name === 'ExitPromptError') {
+                    console.log('\n👋 Mission aborted! The user yeeted the command into the void. Farewell, brave keystroke warrior! 🫡💥');
+                    process.exit(0);
+                } else {
+                    console.error('\n\x1b[31mAn unexpected error occurred:\x1b[0m', error);
+                    process.exit(1);
+                }
             }
         });
 

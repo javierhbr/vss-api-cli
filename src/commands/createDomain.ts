@@ -307,9 +307,8 @@ Options:
                 if (proceed) {
                     try {
                         console.log(`\nGenerating domain ${finalDomainName}...`);
-                        // Pass cmdOptions.force to runSchematic
                         await runSchematic('domain', schematicOptions, cmdOptions.dryRun, cmdOptions.force); 
-                        console.log('\x1b[32m✓\x1b[0m ⏱️ Domain created. We just saved you 37 clicks and 2 existential crises!');
+                        console.log('\x1b[32m✅ Domain created successfully! 🎯\x1b[0m');
                     } catch (error) {
                         console.error('\x1b[31m✗\x1b[0m We tried. The domain said “nah.”:', error);
                     }

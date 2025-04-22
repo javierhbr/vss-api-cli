@@ -208,7 +208,7 @@ export class SchematicsCli {
                             reject(error);
                         },
                         complete: () => {
-                            this.logger.info(` 🛠️ - Code recipe ${schematicName} executed. All systems green..`);
+                            this.logger.info(`\x1b[32m✅ Code recipe ${schematicName} executed successfully! 🎉\x1b[0m`);
                             resolve();
                         }
                     });
