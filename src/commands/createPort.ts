@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import { toCamelCase, toPascalCase, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
-import { createDomainCommand } from './createDomain';
+import { createDomainInteractively } from '../utils/domainUtils';
 
 // Helper function to find existing domains
 async function findExistingDomains(): Promise<string[]> {
@@ -72,9 +72,6 @@ async function createNewDomain(options: { portName: string, path?: string }): Pr
   try {
     console.log('\n📂 Creating a new domain for your port...');
     
-    // Get the domain command instance
-    const domainCmd = createDomainCommand();
-    
     // Prompt for domain name
     const domainAnswer = await inquirer.prompt([
       {
@@ -85,18 +82,21 @@ async function createNewDomain(options: { portName: string, path?: string }): Pr
       }
     ]);
     
-    // Set up process arguments to pass to the domain command
     const domainName = domainAnswer.domainName;
-    const args = ['create:domain', domainName];
     
-    // Add path option if specified
-    if (options.path) {
-      args.push('--path', options.path);
-    }
+    // Create schematic options for domain command
+    const schematicOptions = {
+      name: domainName,
+      path: options.path || '',
+      model: true,
+      service: true,
+      port: true,
+      adapterType: 'repository'
+    };
     
-    // Execute the domain command programmatically
-    await domainCmd.parseAsync([process.argv[0], process.argv[1], ...args], { from: 'user' });
-    
+    // Call the schematic directly instead of using the command
+    console.log(`\nGenerating domain ${domainName}...`);
+    await runSchematic('domain', schematicOptions);
     console.log(`\n✅ Domain "${domainName}" created. Now continuing with port creation...\n`);
     return domainName;
   } catch (error) {
@@ -191,7 +191,7 @@ Options:
 
             // Prompt for domain if not provided
             if (!domainName && existingDomains.length > 0) {
-                const CREATE_NEW_DOMAIN = '+ Create new domain...';
+                const CREATE_NEW_DOMAIN = 'new domain?';
                 const domainAnswer = await inquirer.prompt({
                     type: 'list',
                     name: 'domainName',
@@ -201,8 +201,14 @@ Options:
                 
                 // Handle the option to create a new domain
                 if (domainAnswer.domainName === CREATE_NEW_DOMAIN) {
-                    const newDomainName = await createNewDomain({ portName: name, path: options.path });
+                    const newDomainName = await createDomainInteractively({
+                        path: options.path,
+                        message: 'Enter a name for the new domain:',
+                        showHeader: true
+                    });
+                    
                     if (newDomainName) {
+                        console.log(`\n✅ Domain "${newDomainName}" created. Now continuing with port creation...\n`);
                         domainName = newDomainName;
                     } else {
                         console.log('Domain creation cancelled or failed. Port creation process will now exit.');

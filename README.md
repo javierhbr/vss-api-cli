@@ -219,6 +219,18 @@ When creating a port or service, the CLI will automatically detect existing doma
 vss-api-cli create:service UserUpdater
 ```
 
+### On-the-fly Domain Creation
+
+When creating a port, if you need a new domain that doesn't exist yet, you can select the "+ Create new domain..." option when prompted for which domain the port belongs to. This will start the domain creation workflow without requiring you to run a separate command.
+
+```bash
+# When asked "Which domain does this port belong to?"
+# You can select "+ Create new domain..." from the list
+vss-api-cli create:port UserRepository
+```
+
+This streamlines the workflow by allowing you to create a new domain and immediately add a port to it in a single command.
+
 ## Generated Project Structure
 
 The CLI generates files following this structure:
@@ -349,13 +361,3 @@ Each command includes a detailed help system. Use `--help` with any command to s
 ```bash
 vss-api-cli create:service --help
 ```
-
-The help system provides detailed information on command options, structure of generated files, and example usage.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.

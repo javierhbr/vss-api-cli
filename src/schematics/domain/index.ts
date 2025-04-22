@@ -29,24 +29,46 @@ export default function (options: Schema): Rule {
         applyTemplates({
           ...strings,
           name: modelNameRaw,
+          modelName: modelNameRaw, // Adding modelName here to match template reference
         }),
         move(modelPath),
       ]);
       rules.push(mergeWith(modelTemplateSource));
     }
 
+    // --- Port & Adapter Generation ---
+    // Generate the port name and adapter name earlier so they can be used in the service too
+    const portInterfaceName = options.port !== false ? `${modelNameRaw}${classify(adapterType)}Port` : 'any';
+    const adapterName = `${modelNameRaw}${classify(adapterType)}Adapter`;
+    const camelCasedPortName = options.port !== false ? camelize(portInterfaceName) : 'anyPort';
+
     // --- Service Generation ---
     if (options.service !== false) {
       const servicePath = path.join(srcRoot, domainName, 'services');
       const serviceName = `${modelNameRaw}Service`;
+      
+      // Define the port-related variables
+      const portImports = options.port !== false 
+        ? `import { ${portInterfaceName} } from '../ports/${portInterfaceName}';` 
+        : '// No ports to import';
+      const portDependencies = options.port !== false 
+        ? `private readonly ${camelCasedPortName}: ${portInterfaceName}` 
+        : '// No port dependencies';
+      const modelImport = `import { ${modelNameRaw} } from '../models/${modelNameRaw}';`;
+      
       const serviceTemplateSource = apply(url('./files/service'), [
         applyTemplates({
           ...strings,
           name: modelNameRaw,
           serviceName: serviceName,
           domainName: domainName,
-          // Assuming port name follows a pattern if needed
-          portName: options.port !== false ? `${modelNameRaw}${classify(adapterType)}Port` : 'any' // Placeholder if port exists
+          modelName: modelNameRaw,
+          portInterfaceName: portInterfaceName,
+          camelCasedPortName: camelCasedPortName,
+          // Add the missing variables to the template context
+          portImports: portImports,
+          portDependencies: portDependencies,
+          modelImport: modelImport
         }),
         move(servicePath),
       ]);
@@ -55,8 +77,6 @@ export default function (options: Schema): Rule {
 
     // --- Port & Adapter Generation ---
     if (options.port !== false && adapterType !== 'none') {
-      const portName = `${modelNameRaw}${classify(adapterType)}Port`;
-      const adapterName = `${modelNameRaw}${classify(adapterType)}Adapter`;
       const portPath = path.join(srcRoot, domainName, 'ports');
       const adapterPath = path.join(srcRoot, 'infra', adapterType);
 
@@ -64,8 +84,9 @@ export default function (options: Schema): Rule {
       const portTemplateSource = apply(url('./files/port'), [
         applyTemplates({
           ...strings,
-          portInterfaceName: portName, // Use the generated port name
-          name: modelNameRaw
+          portInterfaceName: portInterfaceName, // Use the generated port name
+          name: modelNameRaw,
+          modelName: modelNameRaw // Adding modelName here for consistency
         }),
         move(portPath),
       ]);
@@ -76,8 +97,9 @@ export default function (options: Schema): Rule {
         applyTemplates({
           ...strings,
           adapterName: adapterName,
-          portInterfaceName: portName,
+          portInterfaceName: portInterfaceName,
           name: modelNameRaw,
+          modelName: modelNameRaw, // Adding modelName here for consistency
           domainName: domainName
         }),
         move(adapterPath),

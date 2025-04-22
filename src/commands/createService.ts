@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import { toCamelCase, toPascalCase, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
+import { createDomainInteractively } from '../utils/domainUtils';
 
 // Helper function to find existing domains
 async function findExistingDomains(): Promise<string[]> {
@@ -116,13 +117,31 @@ Options:
 
             // Prompt for domain if not provided
             if (!domainName && existingDomains.length > 0) {
+                const CREATE_NEW_DOMAIN = 'new domain?';
                 const domainAnswer = await inquirer.prompt({
                     type: 'list',
                     name: 'domainName',
                     message: 'Which domain does this service belong to?',
-                    choices: existingDomains,
+                    choices: [...existingDomains, new inquirer.Separator(), CREATE_NEW_DOMAIN],
                 });
-                domainName = domainAnswer.domainName;
+                
+                if (domainAnswer.domainName === CREATE_NEW_DOMAIN) {
+                    const newDomainName = await createDomainInteractively({ 
+                        path: basePath !== '.' ? basePath : '',
+                        message: 'Enter a name for the new domain:',
+                        showHeader: true
+                    });
+                    
+                    if (newDomainName) {
+                        console.log(`\n✅ Domain "${newDomainName}" created. Now continuing with service creation...\n`);
+                        domainName = newDomainName;
+                    } else {
+                        console.log('Domain creation cancelled or failed. Service creation process will now exit.');
+                        return;
+                    }
+                } else {
+                    domainName = domainAnswer.domainName;
+                }
             } else if (!domainName) {
                 const domainAnswer = await inquirer.prompt({
                     type: 'input',

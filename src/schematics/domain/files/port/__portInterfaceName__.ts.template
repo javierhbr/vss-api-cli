@@ -1,5 +1,5 @@
 // Define the interface for the port
-export interface <%= portName %> {
+export interface <%= portInterfaceName %> {
   // Define methods required by the domain service
   // exampleMethod(data: any): Promise<ResultType>;
 }
