@@ -121,7 +121,7 @@ Options:
                 try {
                     console.log(`Generating handler ${toDasherize(name)}...`);
                     await runSchematic('handler', schematicOptions);
-                    console.log('✅ Handler created successfully!');
+                    console.log('\x1b[32m✅ Handler created successfully! 🚀\x1b[0m');
                 } catch (error) {
                     console.error('Error generating handler:', error);
                 }
