@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { toPascalCase } from '../utils/fileUtils';
+import { toPascalCase, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 import { createDomainInteractively } from '../utils/domainUtils';
 
@@ -22,19 +22,32 @@ async function findExistingDomains(): Promise<string[]> {
 
 // Helper function to find ports in a specific domain
 async function findPortsInDomain(domain: string): Promise<string[]> {
-    const domainPortsDir = path.join(process.cwd(), 'src', domain, 'ports');
-    try {
-        if (!await fs.pathExists(domainPortsDir)) {
-            return [];
+    // Look in multiple possible locations for the ports
+    const possibleDirs = [
+        path.join(process.cwd(), 'src', domain, 'ports'),
+        path.join(process.cwd(), 'test-outcome', 'src', domain, 'ports')
+    ];
+    
+    let allPorts: string[] = [];
+    
+    for (const dir of possibleDirs) {
+        try {
+            if (await fs.pathExists(dir)) {
+                const entries = await fs.readdir(dir);
+                console.log(`Found ${entries.length} files in ${dir}: ${entries.join(', ')}`);
+                
+                const ports = entries
+                    .filter(entry => entry.endsWith('Port.ts'))
+                    .map(entry => entry.replace('.ts', ''));
+                
+                allPorts = [...allPorts, ...ports];
+            }
+        } catch (error) {
+            console.warn(`Warning: Could not read ports in ${dir}. ${(error as Error).message}`);
         }
-        const entries = await fs.readdir(domainPortsDir);
-        return entries
-            .filter(entry => entry.endsWith('Port.ts'))
-            .map(entry => entry.replace('.ts', ''));
-    } catch (error) {
-        console.warn(`Warning: Could not read ports in domain ${domain}. ${(error as Error).message}`);
-        return [];
     }
+    
+    return allPorts;
 }
 
 export function createAdapterCommand(): Command {
@@ -47,6 +60,64 @@ export function createAdapterCommand(): Command {
         .option('-t, --type <adapterType>', 'Type of adapter (repository, rest, graphql, queue, storage)', 'repository')
         .option('--port <portName>', 'Name of the port interface this adapter implements')
         .option('-y, --yes', 'Skip prompts and use default options')
+        .hook('preAction', async () => {
+            // Show detailed help with pagination when --help is used
+            if (process.argv.includes('--help')) {
+                const helpContent = `
+Description:
+  Creates a new adapter implementation for an existing port interface.
+  Adapters connect your domain logic to external infrastructure like
+  databases, APIs, or other services by implementing port interfaces.
+
+Structure Generated:
+  \`\`\`
+  src/
+  └── infra/
+      └── {adapterType}/           # Infrastructure layer folder (repository, rest, etc.)
+          └── {name}{Type}Adapter.ts  # Adapter implementation of a port interface
+  \`\`\`
+
+Features:
+  • Clean architecture adapter implementation
+  • Port interface implementation
+  • Type-safe code with TypeScript
+  • Infrastructure dependency isolation
+  • Follows dependency inversion principle
+
+Examples:
+  $ vss-api-cli create:adapter UserMongo -d user --port UserRepositoryPort -t repository
+  $ vss-api-cli create:adapter StripePayment -d payment --port PaymentGatewayPort -t rest
+  $ vss-api-cli ca ProductElastic -d product --port ProductSearchPort -t graphql
+  $ vss-api-cli create:adapter S3Document -d document --port DocumentStoragePort -t storage
+  $ vss-api-cli create:adapter RedisCache -d user --port UserCachePort -t cache
+
+Adapter Type Patterns:
+  • repository: Database access implementations (MongoDB, PostgreSQL, DynamoDB)
+  • rest: REST API client implementations (Axios, Fetch, custom HTTP clients)
+  • graphql: GraphQL API client implementations
+  • queue: Message queue implementations (SQS, Kafka, RabbitMQ)
+  • storage: File storage implementations (S3, local filesystem)
+  • cache: Caching implementations (Redis, Memcached, in-memory)
+
+Additional Information:
+  • Adapter names should describe the technology or implementation approach
+  • The command helps you select from available domains and ports
+  • Generated adapters include implementation stubs for all port methods
+  • You can customize the adapter name and type via options
+  • Follows best practices for clean architecture
+
+Options:
+  -d, --domain <domainName>    Specify the domain name that contains the port
+  --port <portName>            Name of the port interface this adapter implements
+  -t, --type <adapterType>     Type of adapter (repository, rest, graphql, queue, storage)
+  -p, --path <outputPath>      Specify a custom output path
+  -y, --yes                    Skip prompts and use default options
+  -h, --help                   Display this help message
+`;
+                await displayWithPagination(helpContent);
+                process.exit(0);
+            }
+        })
         .action(async (name: string, options: any) => {
             try {
                 // Display welcome banner for the create:adapter command
@@ -187,8 +258,17 @@ export function createAdapterCommand(): Command {
                 console.log(`\n\x1b[32m✅ Adapter '${toPascalCase(name)}${toPascalCase(options.type || 'repository')}Adapter' created successfully! 🔌\x1b[0m`);
             } catch (error: any) {
                 if (error && error.name === 'ExitPromptError') {
-                    console.log('\n👋 Mission aborted! The user yeeted the command into the void. Farewell, brave keystroke warrior! 🫡💥');
+                    console.log('\n👋 Adapter creation cancelled! Time to implement another day! 🔧');
                     process.exit(0);
+                } else if (error && error.message && error.message.includes('already exist')) {
+                    // Handle file already exists error with a nicer message
+                    const filePath = error.message.match(/Path "([^"]+)"/)?.[1] || '';
+                    console.error('\n\x1b[33m⚠️  File conflict detected!\x1b[0m');
+                    console.error(`\x1b[33mIt looks like a file or directory already exists: ${filePath}\x1b[0m`);
+                    console.log('\n\x1b[36mSuggestions:\x1b[0m');
+                    console.log('  • Try a different adapter name');
+                    console.log('  • Use a different output path with -p option');
+                    console.log('  • Use --force option to overwrite existing files (coming soon)');
                 } else {
                     console.error('\n\x1b[31mError creating adapter:', (error as Error).message, '\x1b[0m');
                     process.exit(1);

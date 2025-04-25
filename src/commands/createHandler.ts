@@ -123,8 +123,19 @@ Options:
                         console.log(`Generating handler ${toDasherize(name)}...`);
                         await runSchematic('handler', schematicOptions);
                         console.log('\x1b[32m✅ Handler created successfully! 🚀\x1b[0m');
-                    } catch (error) {
-                        console.error('Error generating handler:', error);
+                    } catch (error: any) {
+                        if (error && error.message && error.message.includes('already exist')) {
+                            // Handle file already exists error with a nicer message
+                            const filePath = error.message.match(/Path \"([^\"]+)\"/)?.[1] || '';
+                            console.error('\n\x1b[33m⚠️  File conflict detected!\x1b[0m');
+                            console.error(`\x1b[33mIt looks like a file or directory already exists: ${filePath}\x1b[0m`);
+                            console.log('\n\x1b[36mSuggestions:\x1b[0m');
+                            console.log('  • Try a different handler name');
+                            console.log('  • Use a different output path with -p option');
+                            console.log('  • Use --force option to overwrite existing files (coming soon)');
+                        } else {
+                            console.error('Error generating handler:', error);
+                        }
                     }
                 } else {
                     console.log('\nOperation cancelled. No files were created.');

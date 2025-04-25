@@ -361,3 +361,6 @@ Each command includes a detailed help system. Use `--help` with any command to s
 ```bash
 vss-api-cli create:service --help
 ```
+
+
+alias vss-api-cli= '/Users/javierbenavides/others/dev/poc/vss-ol-cli/dist/index.js'

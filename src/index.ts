@@ -6,6 +6,7 @@ import { createDomainCommand } from './commands/createDomain';
 import { createHandlerCommand } from './commands/createHandler';
 import { createPortCommand } from './commands/createPort';
 import { createServiceCommand } from './commands/createService';
+import { createAdapterCommand } from './commands/createAdapter';
 import { displayWithPagination } from './utils/fileUtils';
 
 /**
@@ -64,6 +65,10 @@ function getWelcomeMessage(commandName: string): { action: string, description: 
       action: 'Creating a new port interface and adapter implementation',
       description: 'This will generate the port interface in the domain layer and its adapter in the infrastructure layer'
     },
+    'create:adapter': {
+      action: 'Creating a new adapter implementation for an existing port',
+      description: 'This will generate an adapter that implements a port interface from a specific domain'
+    },
     'create:service': {
       action: 'Creating a new domain service',
       description: 'This will generate a service class in the domain layer'
@@ -101,6 +106,7 @@ function displayHelpSuggestion(): void {
   console.log("  \x1b[36mvss-api-cli create:domain --help\x1b[0m    Show domain generator help");
   console.log("  \x1b[36mvss-api-cli create:handler --help\x1b[0m   Show handler generator help");
   console.log("  \x1b[36mvss-api-cli create:port --help\x1b[0m      Show port generator help");
+  console.log("  \x1b[36mvss-api-cli create:adapter --help\x1b[0m   Show adapter generator help");
   console.log("  \x1b[36mvss-api-cli create:service --help\x1b[0m   Show service generator help");
   console.log();
 }
@@ -230,6 +236,7 @@ Options:
   program.addCommand(createHandlerCommand());
   program.addCommand(createPortCommand());
   program.addCommand(createServiceCommand());
+  program.addCommand(createAdapterCommand());
 
   // Handle unknown commands - show help suggestion after welcome banner
   program.on('command:*', () => {

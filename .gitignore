@@ -85,3 +85,14 @@ doc/.docusaurus/
 
 # Deployment temp directory
 .deploy_docs_temp/
+test-outcome/.gitkeep
+test-outcome/src/.gitkeep
+test-outcome/src/infra/.gitkeep
+test-outcome/src/infra/repository/.gitkeep
+test-outcome/src/infra/repository/payment-qlRepositoryAdapter.ts
+test-outcome/src/infra/repository/PaymentRepositoryAdapter.ts
+test-outcome/src/infra/rest/DueDateRestAdapter.ts
+test-outcome/src/payment/models/Payment.ts
+test-outcome/src/payment/ports/DueDatePort.ts
+test-outcome/src/payment/ports/PaymentRepositoryPort.ts
+test-outcome/src/payment/services/PaymentService.ts
