@@ -5,6 +5,10 @@ A CLI tool for scaffolding API projects with hexagonal architecture. This tool h
 https://javierhbr.github.io/vss-api-cli/
 
 
+![intro](cli-demo.gif)
+
+
+
 ## Installation
 
 ### Global Installation
