@@ -364,3 +364,8 @@ vss-api-cli create:service --help
 
 
 alias vss-api-cli= '/Users/javierbenavides/others/dev/poc/vss-ol-cli/dist/index.js'
+
+
+
+
+for DTO zod schemas, offer to create Request and Response DTO's

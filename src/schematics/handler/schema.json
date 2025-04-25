@@ -15,10 +15,10 @@
     },
     "schema": {
         "type": "boolean",
-        "description": "Generate a Zod schema file.",
+        "description": "Generate a JSON Schema file.",
         "default": false,
         "alias": "s",
-        "x-prompt": "Generate a Zod schema for input validation?"
+        "x-prompt": "Generate a JSON schema for input validation?"
     },
     "path": {
       "type": "string",
@@ -29,6 +29,34 @@
         "type": "string",
         "description": "The name of the project.",
         "visible": false
+    },
+    "serviceDomain": {
+      "type": "string",
+      "description": "The domain of the service to use.",
+      "visible": false
+    },
+    "serviceName": {
+      "type": "string",
+      "description": "The name of the service to use.",
+      "visible": false
+    },
+    "createRequestDto": {
+      "type": "boolean",
+      "description": "Whether to create a Zod Request DTO schema.",
+      "default": false,
+      "visible": false
+    },
+    "createResponseDto": {
+      "type": "boolean",
+      "description": "Whether to create a Zod Response DTO schema.",
+      "default": false,
+      "visible": false
+    },
+    "noValidation": {
+      "type": "boolean",
+      "description": "Whether to skip validation.",
+      "default": false,
+      "visible": false
     }
   },
   "required": ["name"]

@@ -2,54 +2,39 @@ import middy from '@middy/core';
 import httpErrorHandler from '@middy/http-error-handler';
 import httpJsonBodyParser from '@middy/http-json-body-parser';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-<% if (serviceDomain && serviceName) { %>
-import { <%= serviceName %> } from '../../<%= serviceDomain %>/services/<%= serviceName %>';
-<% } %>
-<% if (createRequestDto || createResponseDto) { %>
-import { <% if (createRequestDto) { %><%= classify(name) %>RequestDto, <%= classify(name) %>RequestDtoType<% } %><% if (createRequestDto && createResponseDto) { %>, <% } %><% if (createResponseDto) { %><%= classify(name) %>ResponseDto, <%= classify(name) %>ResponseDtoType<% } %> } from './schemas/<%= dasherize(name) %>.dto';
-<% } %>
+
+import { PaymentService } from '../../payment/services/PaymentService';
+
+
+import { Payments2RequestDto, Payments2RequestDtoType, Payments2ResponseDto, Payments2ResponseDtoType } from './schemas/payments2.dto';
+
 // import { dependencyInjectionMiddleware } from '../middlewares/dependencyInjection'; // Uncomment for DI
 
 // Define your handler logic here
 const baseHandler = async (event: APIGatewayProxyEvent/*, context: any*/): Promise<APIGatewayProxyResult> => {
   try {
-<% if (createRequestDto) { %>
-    // Parse and validate the request using Zod
-    const requestData = <%= classify(name) %>RequestDto.parse(event.body);
-<% } else { %>
-    // Access body data (already parsed by httpJsonBodyParser middleware)
-    const requestData = event.body as any;
-<% } %>
 
-<% if (serviceDomain && serviceName) { %>
+    // Parse and validate the request using Zod
+    const requestData = Payments2RequestDto.parse(event.body);
+
+
+
     // Initialize the service
-    const service = new <%= serviceName %>();
+    const service = new PaymentService();
     
     // Call the service method with the request data
     const result = await service.performAction(requestData);
 
-<% if (createResponseDto) { %>
+
     // Validate the response using Zod
-    const responseData = <%= classify(name) %>ResponseDto.parse(result);
+    const responseData = Payments2ResponseDto.parse(result);
     
     return {
       statusCode: 200,
       body: JSON.stringify(responseData),
     };
-<% } else { %>
-    return {
-      statusCode: 200,
-      body: JSON.stringify(result),
-    };
-<% } %>
-<% } else { %>
-    // TODO: Implement your handler logic here
-    
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: 'Handler executed successfully!' }),
-    };
-<% } %>
+
+
   } catch (error) {
     console.error('Error in handler:', error);
     
