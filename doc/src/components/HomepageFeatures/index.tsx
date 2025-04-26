@@ -7,7 +7,7 @@ export default function HomepageFeatures(): JSX.Element {
     <section className={styles.features}>
       <div className="container">
         <div className="col col--12">
-          <div className={clsx('text--left', styles.featureContent)}>
+            <div className={clsx('text--left', styles.featureContent)}>
             <p>
               Want to speed up setting up new API projects with Hexagonal Architecture? Check out <strong>VSS-API-CLI</strong>! ✨
             </p>
@@ -30,14 +30,14 @@ export default function HomepageFeatures(): JSX.Element {
             <h3>Install:</h3>
             <pre>
               <code>
-{`# Local install (recommended)
-npm install --save-dev vss-api-cli
+      {`# Local install (recommended)
+      npm install --save-dev vss-api-cli
 
-# Global install
-npm install -g vss-api-cli`}
+      # Global install
+      npm install -g vss-api-cli`}
               </code>
             </pre>
-          </div>
+            </div>
         </div>
       </div>
     </section>

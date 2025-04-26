@@ -2,29 +2,36 @@
 sidebar_position: 4
 ---
 
-# Service Generator (`create:service` or `cs`)
+# How to Create a Service
 
-Creates a new domain service.
+This guide explains how to use the `vss-api-cli` to generate a new domain service.
 
-```bash
-vss-api-cli create:service <name> [options]
-# or
-vss-api-cli cs <name> [options]
-```
+## Steps
 
-**Options:**
-- `--domain` (`-d`): Specify the domain name the service belongs to
-- `--path <outputPath>`: Specify a custom output path (overrides default domain path)
+1. **Run the Command**  
+   Use the following command to create a service:
+   ```bash
+   vss-api-cli create:service <name> [options]
+   # or
+   vss-api-cli cs <name> [options]
+   ```
 
-**Example:**
-```bash
-vss-api-cli create:service UserCreator -d user
-```
+2. **Options**  
+   Customize the service generation using these options:
+   - `--domain` (`-d`): Specify the domain name the service belongs to.
+   - `--path <outputPath>`: Specify a custom output path (overrides default domain path).
 
-This creates:
-- `src/user/services/UserCreatorService.ts` (if no path is specified)
-- `<outputPath>/<ServiceName>.ts` (if path is specified)
+3. **Example**  
+   To create a service named `UserCreator` for the `user` domain:
+   ```bash
+   vss-api-cli create:service UserCreator -d user
+   ```
 
-## Generated Files
-
-- **Service File**: Contains the class definition for the domain service within the specified domain's `services/` directory (or custom path).
+4. **Generated Structure**  
+   The command generates the following structure:
+   ```
+   src/
+   ├── user/
+   │   ├── services/
+   │   │   └── UserCreatorService.ts
+   ```
