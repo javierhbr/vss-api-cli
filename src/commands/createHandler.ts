@@ -3,6 +3,8 @@ import inquirer from 'inquirer';
 import { toPascalCase, toDasherize, displayWithPagination } from '../utils/fileUtils';
 import { findExistingServices } from '../utils/domainUtils';
 import { runSchematic } from '../schematics-cli';
+import { loadConfig, processTemplate } from '../utils/configLoader';
+import * as path from 'path';
 
 /**
  * Generate a preview tree of files that will be created for a handler
@@ -16,15 +18,59 @@ function generateFilePreview(options: {
   serviceDomain?: string,
   serviceName?: string
 }): string {
-  const { name, path: basePath = '.', schema, createRequestDto, createResponseDto, serviceDomain, serviceName } = options;
+  const { 
+    name, 
+    path: basePath = '.', 
+    schema, 
+    createRequestDto, 
+    createResponseDto, 
+    serviceDomain, 
+    serviceName 
+  } = options;
+  
+  // Load configuration
+  const config = loadConfig(basePath);
+  const handlerConfig = config.filePatterns.handler || {};
+  const dirConfig = config.directories.handler || {};
+  
+  // Generate template variables
   const handlerName = toDasherize(name);
   const pascalName = toPascalCase(name);
   const previewBasePath = basePath === '.' ? '' : `${basePath}/`;
-  const srcPreviewPath = `${previewBasePath}src`;
+  
+  // Template variables for path and filename processing
+  const templateVars = {
+    name,
+    pascalName,
+    dashName: handlerName,
+    camelName: toDasherize(name).replace(/-([a-z])/g, (_, c) => c.toUpperCase()),
+    domainName: serviceDomain || '',
+    serviceName: serviceName || ''
+  };
+  
+  // Process paths and filenames using configuration
+  const srcPath = path.join(previewBasePath, config.basePath);
+  const handlerDir = processTemplate(dirConfig.base || 'handlers', templateVars);
+  const schemaDir = dirConfig.schema ? 
+    processTemplate(dirConfig.schema, templateVars) : 
+    `${handlerDir}/schemas`;
+  
+  const handlerFile = handlerConfig.handlerFile ? 
+    processTemplate(handlerConfig.handlerFile, templateVars) : 
+    `${handlerName}.handler.ts`;
+    
+  const schemaFile = handlerConfig.schemaFile ? 
+    processTemplate(handlerConfig.schemaFile, templateVars) : 
+    `${pascalName}Schema.ts`;
+    
+  const dtoFile = handlerConfig.dtoFile ? 
+    processTemplate(handlerConfig.dtoFile, templateVars) : 
+    `${handlerName}.dto.ts`;
 
+  // Generate preview text
   let preview = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
-  preview += `\x1b[36m${srcPreviewPath}/handlers/\x1b[0m\n`;
-  preview += `\x1b[32m├── ${handlerName}.handler.ts\x1b[0m \x1b[90m- Handler function`;
+  preview += `\x1b[36m${srcPath}/${handlerDir}/\x1b[0m\n`;
+  preview += `\x1b[32m├── ${handlerFile}\x1b[0m \x1b[90m- Handler function`;
   
   if (serviceDomain && serviceName) {
     preview += ` (using ${serviceName} from ${serviceDomain})`;
@@ -32,12 +78,12 @@ function generateFilePreview(options: {
   preview += `\x1b[0m\n`;
   
   if (schema) {
-    preview += `\x1b[32m├── ${pascalName}Schema.ts\x1b[0m \x1b[90m- JSON Schema validation\x1b[0m\n`;
+    preview += `\x1b[32m├── ${schemaFile}\x1b[0m \x1b[90m- JSON Schema validation\x1b[0m\n`;
   }
 
   if (createRequestDto || createResponseDto) {
-    preview += `\x1b[36m${srcPreviewPath}/handlers/schemas/\x1b[0m\n`;
-    preview += `\x1b[32m└── ${handlerName}.dto.ts\x1b[0m \x1b[90m- Zod DTO schema`;
+    preview += `\x1b[36m${srcPath}/${schemaDir}/\x1b[0m\n`;
+    preview += `\x1b[32m└── ${dtoFile}\x1b[0m \x1b[90m- Zod DTO schema`;
     
     const dtos = [];
     if (createRequestDto) dtos.push('Request');

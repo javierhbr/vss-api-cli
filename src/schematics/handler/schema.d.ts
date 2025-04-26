@@ -43,4 +43,18 @@ export interface Schema {
      * Whether to skip validation.
      */
     noValidation?: boolean;
+
+    /**
+     * Configuration object for customizing file names and paths
+     * @internal
+     */
+    _config?: {
+        filePatterns: {
+            [key: string]: string;
+        };
+        directories: {
+            [key: string]: string;
+        };
+        basePath: string;
+    };
 }

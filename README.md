@@ -363,6 +363,56 @@ vss-api-cli create:service --help
 ```
 
 
+
+## configuration file
+
+```
+{
+  "basePath": "src",
+  "filePatterns": {
+    "handler": {
+      "handlerFile": "{{name}}.handler.ts",
+      "schemaFile": "{{pascalName}}Schema.ts",
+      "dtoFile": "{{dashName}}.dto.ts"
+    },
+    "domain": {
+      "modelFile": "{{pascalName}}.ts",
+      "serviceFile": "{{pascalName}}Service.ts",
+      "portFile": "{{pascalName}}{{adapterType}}Port.ts",
+      "adapterFile": "{{pascalName}}{{adapterType}}Adapter.ts"
+    },
+    "service": {
+      "serviceFile": "{{pascalName}}Service.ts"
+    },
+    "port": {
+      "portFile": "{{pascalName}}Port.ts",
+      "adapterFile": "{{pascalName}}Adapter.ts"
+    }
+  },
+  "directories": {
+    "handler": {
+      "base": "functions", 
+      "schema": "functions/schemas"
+    },
+    "domain": {
+      "base": "{{domainName}}",
+      "model": "{{domainName}}/models",
+      "service": "{{domainName}}/services",
+      "port": "{{domainName}}/ports"
+    },
+    "adapter": {
+      "base": "infrastructure/{{adapterType}}"
+    },
+    "service": {
+      "base": "{{domainName}}/services"
+    },
+    "port": {
+      "base": "{{domainName}}/ports"
+    }
+  }
+}
+```
+
 alias vss-api-cli= '/Users/javierbenavides/others/dev/poc/vss-ol-cli/dist/index.js'
 
 

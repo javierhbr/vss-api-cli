@@ -7,6 +7,13 @@ import { Schema } from './schema';
 import * as path from 'path';
 import * as fs from 'fs';
 
+/**
+ * Process template variables in config strings
+ */
+function processTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => vars[key] || '');
+}
+
 export default function (options: Schema): Rule {
   return async (_tree: Tree, _context: SchematicContext) => {
     if (!options.name) {
@@ -15,11 +22,49 @@ export default function (options: Schema): Rule {
 
     const handlerName = options.name;
     const basePath = options.path || '.'; // Use provided path or default to current directory
-    const srcRoot = path.join(basePath, 'src'); // Define the source root
-    const handlerPath = path.join(srcRoot, 'handlers'); // Target path for handler
     
-    // Define path for DTOs
-    const dtoSchemasPath = path.join(handlerPath, 'schemas'); // Target path for DTOs
+    // Get config from options (injected by runSchematic) or use defaults
+    const config = options._config || {
+      filePatterns: {
+        handlerFile: '{{dashName}}.handler.ts',
+        schemaFile: '{{pascalName}}Schema.ts',
+        dtoFile: '{{dashName}}.dto.ts'
+      },
+      directories: {
+        base: 'handlers',
+        schema: 'handlers/schemas'
+      },
+      basePath: 'src'
+    };
+    
+    const { classify, dasherize, camelize } = strings;
+    
+    // Generate template variables
+    const templateVars = {
+      name: handlerName,
+      pascalName: classify(handlerName),
+      dashName: dasherize(handlerName),
+      camelName: camelize(handlerName),
+      domainName: options.serviceDomain || '',
+      serviceName: options.serviceName || '',
+      adapterType: ''
+    };
+    
+    // Process directory paths with template vars - handle undefined by providing defaults
+    const srcRoot = path.join(basePath, config.basePath);
+    const handlerDir = processTemplate(config.directories?.base || 'handlers', templateVars);
+    const handlerPath = path.join(srcRoot, handlerDir);
+    
+    // For schemas directory, use config or default
+    const schemaDir = config.directories?.schema ? 
+      processTemplate(config.directories.schema, templateVars) : 
+      path.join(handlerDir, 'schemas');
+    const dtoSchemasPath = path.join(srcRoot, schemaDir);
+    
+    // Process file names with template vars
+    const dtoFileName = config.filePatterns?.dtoFile ? 
+      processTemplate(config.filePatterns.dtoFile, templateVars) : 
+      `${dasherize(handlerName)}.dto.ts`;
     
     // Check if we need to create Zod DTOs
     const createDtos = options.createRequestDto || options.createResponseDto;
@@ -51,26 +96,25 @@ export default function (options: Schema): Rule {
     // If we need to create Zod DTOs
     if (createDtos) {
       // Create a template for the DTO schema file
-      const dtoFileName = `${strings.dasherize(handlerName)}.dto`;
       const dtoContent = `// Generated Zod schema DTOs for ${handlerName} handler
 import { z } from 'zod';
 
 ${options.createRequestDto ? `/**
  * Request DTO schema for ${handlerName}
  */
-export const ${strings.classify(handlerName)}RequestDto = z.object({
+export const ${classify(handlerName)}RequestDto = z.object({
   // TODO: Define your request schema properties here
   // Example:
   // id: z.string().uuid(),
   // name: z.string().min(1).max(100),
 });
 
-export type ${strings.classify(handlerName)}RequestDtoType = z.infer<typeof ${strings.classify(handlerName)}RequestDto>;
+export type ${classify(handlerName)}RequestDtoType = z.infer<typeof ${classify(handlerName)}RequestDto>;
 ` : ''}
 ${options.createResponseDto ? `/**
  * Response DTO schema for ${handlerName}
  */
-export const ${strings.classify(handlerName)}ResponseDto = z.object({
+export const ${classify(handlerName)}ResponseDto = z.object({
   // TODO: Define your response schema properties here
   // Example:
   // id: z.string().uuid(),
@@ -78,7 +122,7 @@ export const ${strings.classify(handlerName)}ResponseDto = z.object({
   // createdAt: z.string().datetime(),
 });
 
-export type ${strings.classify(handlerName)}ResponseDtoType = z.infer<typeof ${strings.classify(handlerName)}ResponseDto>;
+export type ${classify(handlerName)}ResponseDtoType = z.infer<typeof ${classify(handlerName)}ResponseDto>;
 ` : ''}`;
 
       // Create a rule to write the DTO schema file
@@ -89,7 +133,7 @@ export type ${strings.classify(handlerName)}ResponseDtoType = z.infer<typeof ${s
         }
         
         // Create the DTO schema file
-        tree.create(path.join(dtoSchemasPath, `${dtoFileName}.ts`), dtoContent);
+        tree.create(path.join(dtoSchemasPath, dtoFileName), dtoContent);
         return tree;
       };
       
