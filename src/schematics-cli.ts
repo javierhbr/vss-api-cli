@@ -250,8 +250,15 @@ export async function runSchematic(
     // Extract name from options but don't declare unused restOptions
     const { name } = options;
     
+    // Get full resolved path if a path option is provided
+    let configPath = options.path || '.';
+    if (configPath.startsWith('~')) {
+      configPath = configPath.replace(/^~/, process.env.HOME || process.env.USERPROFILE || '');
+    }
+    console.log(`Loading config from path: ${configPath}`);
+    
     // Load config, potentially with path from options
-    const config = configOverride || loadConfig(options.path || '.');
+    const config = configOverride || loadConfig(configPath);
     
     // Explicitly add fileNameCase to options for schematics to access
     options.fileNameCase = config.fileNameCase;

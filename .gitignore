@@ -5,6 +5,8 @@ jspm_packages/
 # TypeScript compiled output
 dist/
 build/
+*test*/
+*fix*/
 test-outcome/
 out/
 *.tsbuildinfo

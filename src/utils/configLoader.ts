@@ -74,15 +74,22 @@ export function loadConfig(basePath: string = '.'): CliConfig {
   const configPath = path.join(process.cwd(), basePath, 'vss-api.config.json');
   let userConfig: Partial<CliConfig> = {};
   
+  console.log(`Looking for config at: ${configPath}`);
+  
   try {
     if (fs.existsSync(configPath)) {
-      const rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      console.log(`Found config file at: ${configPath}`);
+      const configContent = fs.readFileSync(configPath, 'utf8');
+      console.log(`Config content: ${configContent}`);
+      
+      const rawConfig = JSON.parse(configContent);
       
       // Ensure fileNameCase is valid if present
       if (rawConfig.fileNameCase) {
         const validValues = ['pascal', 'camel', 'kebab', 'snake'];
         if (validValues.includes(rawConfig.fileNameCase)) {
           userConfig.fileNameCase = rawConfig.fileNameCase as 'pascal' | 'camel' | 'kebab' | 'snake';
+          console.log(`Using fileNameCase from config: ${userConfig.fileNameCase}`);
         }
       }
       
@@ -92,6 +99,8 @@ export function loadConfig(basePath: string = '.'): CliConfig {
       if (rawConfig.directories) userConfig.directories = rawConfig.directories;
       
       console.log('🔧 Using configuration from vss-api.config.json');
+    } else {
+      console.log(`Config file not found at: ${configPath}`);
     }
   } catch (error) {
     console.warn('⚠️ Error loading configuration file, using defaults:', error);

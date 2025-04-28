@@ -9,6 +9,7 @@ Create a `vss-api.config.json` file in your project root:
 ```json
 {
   "basePath": "src",
+  "fileNameCase": "kebab", 
   "filePatterns": {
     "handler": {
       "handlerFile": "{{dashName}}.function.ts",
@@ -43,6 +44,7 @@ src/
 ```json
 {
   "basePath": "src",
+  "fileNameCase": "pascal",
   "directories": {
     "domain": {
       "base": "core/domain/{{domainName}}",
@@ -106,6 +108,7 @@ src/
 ```json
 {
   "basePath": "src",
+  "fileNameCase": "camel",
   "filePatterns": {
     "handler": {
       "handlerFile": "{{pascalName}}Handler.ts",
@@ -172,6 +175,7 @@ src/
 ```json
 {
   "basePath": "src",
+  "fileNameCase": "snake",
   "filePatterns": {
     "handler": {
       "handlerFile": "index.ts",
@@ -208,6 +212,7 @@ src/
 ```json
 {
   "basePath": "src",
+  "fileNameCase": "kebab",
   "filePatterns": {
     "handler": {
       "handlerFile": "{{dashName}}.controller.ts",
@@ -265,6 +270,43 @@ You can use these variables in your file and directory patterns:
 | `{{domainName}}` | Domain name (if applicable) | `payment` |
 | `{{serviceName}}` | Service name (if applicable) | `PaymentProcessor` |
 | `{{adapterType}}` | Adapter type (if applicable) | `repository` |
+
+## Control File Naming Case
+
+You can control the case style of generated file names with the `fileNameCase` option:
+
+```json
+{
+  "basePath": "src",
+  "fileNameCase": "camel", 
+  "directories": {
+    "domain": {
+      "base": "core/domain/{{domainName}}"
+    }
+  }
+}
+```
+
+Available options for `fileNameCase`:
+
+| Option | Description | Example File Names |
+|--------|-------------|-------------------|
+| `pascal` | PascalCase (default) | `Product.ts`, `ProductService.ts` |
+| `camel` | camelCase | `product.ts`, `productService.ts` |
+| `kebab` | kebab-case | `product.ts`, `product-service.ts` |
+| `snake` | snake_case | `product.ts`, `product_service.ts` |
+
+This setting affects the actual filenames generated on disk, while maintaining the appropriate casing in imports and class names within the files.
+
+Example with `fileNameCase: "camel"`:
+- Filename: `product.ts`
+- Class name inside: `class product {}`
+- Imports: `import { product } from '../models/product'`
+
+Example with `fileNameCase: "pascal"` (default):
+- Filename: `Product.ts`
+- Class name inside: `class Product {}`
+- Imports: `import { Product } from '../models/Product'`
 
 ## Usage Workflow
 
