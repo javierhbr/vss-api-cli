@@ -4,4 +4,15 @@ export interface AdapterSchema {
   domain: string;
   port: string;
   adapterType: 'repository' | 'rest' | 'graphql' | 'queue' | 'storage';
+  
+  /**
+   * The case style to use for file names.
+   * Options: 'pascal', 'camel', 'kebab', 'snake'
+   */
+  fileNameCase?: 'pascal' | 'camel' | 'kebab' | 'snake';
+    
+  /**
+   * Internal configuration passed from command.
+   */
+  _config?: any;
 }

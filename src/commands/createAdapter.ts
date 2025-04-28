@@ -5,6 +5,7 @@ import * as fs from 'fs-extra';
 import { toPascalCase, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 import { createDomainInteractively } from '../utils/domainUtils';
+import { loadConfig } from '../utils/configLoader';
 
 // Helper function to find existing domains
 async function findExistingDomains(): Promise<string[]> {
@@ -243,6 +244,9 @@ Options:
                     options.type = adapterType;
                 }
 
+                // Load config to get fileNameCase
+                const config = loadConfig(options.path || '.');
+                
                 // Run schematic with parsed options
                 await runSchematic(
                     'adapter',
@@ -251,6 +255,8 @@ Options:
                         domain: options.domain,
                         port: options.port || availablePorts[0],
                         adapterType: options.type || 'repository',
+                        fileNameCase: config.fileNameCase || 'pascal',
+                        _config: config,
                         ...(options.path && { path: options.path })
                     }
                 );

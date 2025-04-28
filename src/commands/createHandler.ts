@@ -213,6 +213,9 @@ Options:
                     createResponseDto = dtoAnswer.dtos.includes('response');
                 }
 
+                // Load config to get fileNameCase
+                const config = loadConfig(basePath);
+                
                 // Prepare schematic options
                 const schematicOptions = {
                     name: name,
@@ -222,7 +225,9 @@ Options:
                     serviceDomain: selectedService?.domain || null,
                     serviceName: selectedService?.service || null,
                     createRequestDto,
-                    createResponseDto
+                    createResponseDto,
+                    fileNameCase: config.fileNameCase || 'pascal',
+                    _config: config // Pass full config for more complex template processing
                 };
 
                 // Generate and show file preview

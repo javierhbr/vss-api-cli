@@ -40,21 +40,13 @@ export interface Schema {
     createResponseDto?: boolean;
 
     /**
-     * Whether to skip validation.
+     * The case style to use for file names.
+     * Options: 'pascal', 'camel', 'kebab', 'snake'
      */
-    noValidation?: boolean;
-
+    fileNameCase?: 'pascal' | 'camel' | 'kebab' | 'snake';
+    
     /**
-     * Configuration object for customizing file names and paths
-     * @internal
+     * Internal configuration passed from command.
      */
-    _config?: {
-        filePatterns: {
-            [key: string]: string;
-        };
-        directories: {
-            [key: string]: string;
-        };
-        basePath: string;
-    };
+    _config?: any;
 }

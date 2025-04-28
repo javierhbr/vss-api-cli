@@ -5,6 +5,7 @@ import * as fs from 'fs-extra';
 import { toCamelCase, toPascalCase, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 import { createDomainInteractively } from '../utils/domainUtils';
+import { loadConfig } from '../utils/configLoader';
 
 // Helper function to find existing domains
 async function findExistingDomains(): Promise<string[]> {
@@ -260,6 +261,9 @@ Options:
 
                 domainName = toCamelCase(domainName);
                 const portName = toPascalCase(name);
+                
+                // Load config to get fileNameCase
+                const config = loadConfig(options.path || '.');
 
                 // Generate options for the schematic (pass custom name if provided)
                 const schematicOptions = {
@@ -267,7 +271,9 @@ Options:
                     domain: domainName,
                     path: options.path || '',
                     adapterType,
-                    portInterfaceName: options.portInterfaceName // Pass custom name if provided
+                    portInterfaceName: options.portInterfaceName, // Pass custom name if provided
+                    fileNameCase: config.fileNameCase || 'pascal',
+                    _config: config // Pass full config for more complex template processing
                 };
 
                 // Generate and show file preview with pagination using the same options
