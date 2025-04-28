@@ -4,8 +4,7 @@ import {
 } from '@angular-devkit/schematics';
 import { Schema } from './schema';
 import * as path from 'path';
-import { toCamelCase, toPascalCase } from '../../utils/fileUtils';
-
+import { toCamelCase, toPascalCase, toDasherize, toSnakeCase } from '../../utils/fileUtils';
 
 const { camelize } = strings;
 
@@ -15,22 +14,54 @@ export default function (options: Schema): Rule {
       throw new SchematicsException('Option (name) is required.');
     }
 
-    // Get fileNameCase from options
+    // Get fileNameCase from options or config
     const fileNameCase = options.fileNameCase || 'pascal';
     console.log(`Domain schematic using fileNameCase: ${fileNameCase}`);
     
-    // Format name based on config
-    const formatName = (name: string) => {
-      return fileNameCase === 'camel' ? toCamelCase(name) : toPascalCase(name);
+    // Format name based on fileNameCase config
+    const formatName = (name: string): string => {
+      switch (fileNameCase) {
+        case 'camel':
+          return toCamelCase(name);
+        case 'kebab':
+          return toDasherize(name);
+        case 'snake':
+          return toSnakeCase(name);
+        case 'pascal':
+        default:
+          return toPascalCase(name);
+      }
+    };
+    
+    // Format compound names (like serviceName, portName) for file names
+    const formatCompoundFileName = (baseName: string, suffix: string): string => {
+      switch (fileNameCase) {
+        case 'kebab':
+          return `${toDasherize(baseName)}-${toDasherize(suffix)}`;
+        case 'snake':
+          return `${toSnakeCase(baseName)}_${toSnakeCase(suffix)}`;
+        case 'camel':
+          return `${toCamelCase(baseName)}${toPascalCase(suffix)}`;
+        case 'pascal':
+        default:
+          return `${toPascalCase(baseName)}${toPascalCase(suffix)}`;
+      }
+    };
+
+    // Always use PascalCase for class/interface names regardless of file naming convention
+    const formatClassName = (name: string): string => {
+      return toPascalCase(name);
     };
 
     const domainName = camelize(options.name);
     const modelName = formatName(options.name);
+    const classModelName = formatClassName(options.name); // For the class declaration
     const basePath = options.path || '.';
     const srcRoot = path.join(basePath, 'src');
 
     console.log(`Using name: ${options.name}`);
-    console.log(`Using formatted name: ${modelName}`);
+    console.log(`Using formatted filename: ${modelName}`);
+    console.log(`Using class name: ${classModelName}`);
     console.log(`Using src root: ${srcRoot}`);
 
     // Create all directories using the tree but not .gitkeep files
@@ -50,7 +81,7 @@ export default function (options: Schema): Rule {
         
         const modelFile = path.join(modelDir, `${modelName}.ts`);
         const modelContent = `// Define your domain model properties and methods here
-export class ${modelName} {
+export class ${classModelName} {
   // Example property
   // readonly id: string;
 
@@ -72,28 +103,34 @@ export class ${modelName} {
         const serviceDir = path.join(srcRoot, domainName, 'services');
         createDir(serviceDir);
         
-        const serviceNameBase = options.serviceName || `${modelName}Service`;
-        const serviceName = formatName(serviceNameBase);
+        // Use compound name formatting for service file
+        const serviceBaseName = options.serviceName || options.name;
+        const serviceSuffix = 'Service';
+        const serviceFileName = formatCompoundFileName(serviceBaseName, serviceSuffix);
+        const serviceClassName = formatClassName(serviceBaseName + serviceSuffix);
         
         const adapterType = options.adapterType || 'repository';
-        const portInterfaceName = options.port !== false ? 
-          formatName(`${modelName}${adapterType.charAt(0).toUpperCase() + adapterType.slice(1)}Port`) : 
-          'any';
         
-        const camelCasedPortName = options.port !== false ? camelize(portInterfaceName) : 'anyPort';
+        // Format the port name according to convention
+        const portBaseName = options.name;
+        const portSuffix = `${adapterType.charAt(0).toUpperCase() + adapterType.slice(1)}Port`;
+        const portFileName = formatCompoundFileName(portBaseName, portSuffix);
+        const portClassName = formatClassName(portBaseName + portSuffix);
         
-        const serviceFile = path.join(serviceDir, `${serviceName}.ts`);
-        const serviceContent = `import { ${modelName} } from '../models/${modelName}';
-${options.port !== false ? `import { ${portInterfaceName} } from '../ports/${portInterfaceName}';` : '// No ports to import'}
+        const camelCasedPortName = camelize(portClassName);
+        
+        const serviceFile = path.join(serviceDir, `${serviceFileName}.ts`);
+        const serviceContent = `import { ${classModelName} } from '../models/${modelName}';
+${options.port !== false ? `import { ${portClassName} } from '../ports/${portFileName}';` : '// No ports to import'}
 
 // Define your service logic here
-export class ${serviceName} {
+export class ${serviceClassName} {
   constructor(
-    ${options.port !== false ? `private readonly ${camelCasedPortName}: ${portInterfaceName}` : '// No port dependencies'}
+    ${options.port !== false ? `private readonly ${camelCasedPortName}: ${portClassName}` : '// No port dependencies'}
   ) {}
 
   // Example service method
-  // public async performAction(data: ${modelName}): Promise<ResultType> {
+  // public async performAction(data: ${classModelName}): Promise<ResultType> {
   //   // Use injected ports and models
   //   // await this.${camelCasedPortName}.somePortMethod(data.id);
   //   return /* result */;
@@ -109,18 +146,21 @@ export class ${serviceName} {
         createDir(portDir);
         
         const adapterType = options.adapterType || 'repository';
-        const portNameBase = options.portName || 
-          `${modelName}${adapterType.charAt(0).toUpperCase() + adapterType.slice(1)}Port`;
-        const portName = formatName(portNameBase);
         
-        const portFile = path.join(portDir, `${portName}.ts`);
-        const portContent = `import { ${modelName} } from '../models/${modelName}';
+        // Format port name according to convention
+        const portBaseName = options.portName || options.name;
+        const portSuffix = `${adapterType.charAt(0).toUpperCase() + adapterType.slice(1)}Port`;
+        const portFileName = formatCompoundFileName(portBaseName, portSuffix);
+        const portClassName = formatClassName(portBaseName + portSuffix);
+        
+        const portFile = path.join(portDir, `${portFileName}.ts`);
+        const portContent = `import { ${classModelName} } from '../models/${modelName}';
 
 // Define your port interface here
-export interface ${portName} {
+export interface ${portClassName} {
   // Example methods
-  // findById(id: string): Promise<${modelName} | null>;
-  // save(data: ${modelName}): Promise<${modelName}>;
+  // findById(id: string): Promise<${classModelName} | null>;
+  // save(data: ${classModelName}): Promise<${classModelName}>;
 }`;
         tree.create(portFile, portContent);
         console.log(`Created port file: ${portFile}`);
@@ -129,27 +169,29 @@ export interface ${portName} {
         const adapterDir = path.join(srcRoot, 'infra', adapterType);
         createDir(adapterDir);
         
-        const adapterNameBase = options.adapterName || 
-          `${modelName}${adapterType.charAt(0).toUpperCase() + adapterType.slice(1)}Adapter`;
-        const adapterName = formatName(adapterNameBase);
+        // Format adapter name according to convention
+        const adapterBaseName = options.adapterName || options.name;
+        const adapterSuffix = `${adapterType.charAt(0).toUpperCase() + adapterType.slice(1)}Adapter`;
+        const adapterFileName = formatCompoundFileName(adapterBaseName, adapterSuffix);
+        const adapterClassName = formatClassName(adapterBaseName + adapterSuffix);
         
-        const adapterFile = path.join(adapterDir, `${adapterName}.ts`);
-        const adapterContent = `import { ${portName} } from '../../${domainName}/ports/${portName}';
-import { ${modelName} } from '../../${domainName}/models/${modelName}';
+        const adapterFile = path.join(adapterDir, `${adapterFileName}.ts`);
+        const adapterContent = `import { ${portClassName} } from '../../${domainName}/ports/${portFileName}';
+import { ${classModelName} } from '../../${domainName}/models/${modelName}';
 
 // Define your adapter implementation here
-export class ${adapterName} implements ${portName} {
+export class ${adapterClassName} implements ${portClassName} {
   constructor() {
     // Initialize adapter (e.g., database connection, API client)
   }
 
   // Example implementation
-  // async findById(id: string): Promise<${modelName} | null> {
+  // async findById(id: string): Promise<${classModelName} | null> {
   //   // Implementation details
-  //   return new ${modelName}(...);
+  //   return new ${classModelName}(...);
   // }
   //
-  // async save(data: ${modelName}): Promise<${modelName}> {
+  // async save(data: ${classModelName}): Promise<${classModelName}> {
   //   // Implementation details
   //   return data;
   // }

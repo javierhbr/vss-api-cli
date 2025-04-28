@@ -81,6 +81,17 @@ export function toDasherize(str: string): string {
 }
 
 /**
+ * Converts a string to snake_case.
+ * Example: "UserPayment" becomes "user_payment"
+ */
+export function toSnakeCase(str: string): string {
+    // First convert to kebab-case
+    const kebabCase = toDasherize(str);
+    // Then replace hyphens with underscores
+    return kebabCase.replace(/-/g, '_');
+}
+
+/**
  * Display text content with pagination
  * @param content The text content to display
  * @param linesPerPage Number of lines to show per page
