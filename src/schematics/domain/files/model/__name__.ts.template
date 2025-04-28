@@ -1,0 +1,14 @@
+// Define your domain model properties and methods here
+export class <%= modelName %> {
+  // Example property
+  // readonly id: string;
+
+  constructor(/* constructor parameters */) {
+    // Initialize properties
+  }
+
+  // Example method
+  // public someBusinessLogic(): void {
+  //   // ...
+  // }
+}

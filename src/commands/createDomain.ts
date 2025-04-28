@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import { toCamelCase, toPascalCase, capitalizeFirstLetter, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
+import { loadConfig } from '../utils/configLoader';
 
 /**
  * Generate a preview tree of files that will be created
@@ -34,15 +35,30 @@ function generateFilePreview(options: {
   } = options;
   
   const domainName = toCamelCase(name);
-  const pascalName = toPascalCase(domainName);
   const basePath = outputPath ? `${outputPath}/` : '';
   
+  // Load configuration to determine file naming conventions
+  const config = loadConfig(outputPath);
+  const fileNameCase = config.fileNameCase || 'pascal';
+  
+  // Format name based on config
+  const formatName = (baseName: string) => {
+    return fileNameCase === 'camel' ? toCamelCase(baseName) : toPascalCase(baseName);
+  };
+  
+  console.log(`Preview using fileNameCase: ${fileNameCase}`);
+  
   // Use custom names if provided, otherwise derive from domain name
-  const finalModelName = modelName ? toPascalCase(modelName) : pascalName;
-  const finalServiceName = serviceName ? toPascalCase(serviceName) : `${pascalName}Service`;
-  const finalPortName = portName ? toPascalCase(portName) : `${pascalName}${capitalizeFirstLetter(adapterType)}Port`;
-  // Use custom adapter name if provided, otherwise derive it
-  const finalAdapterName = adapterName ? toPascalCase(adapterName) : `${pascalName}${capitalizeFirstLetter(adapterType)}Adapter`; 
+  const baseModelName = modelName || name;
+  const baseServiceName = serviceName || `${name}Service`;
+  const basePortName = portName || `${name}${capitalizeFirstLetter(adapterType)}Port`;
+  const baseAdapterName = adapterName || `${name}${capitalizeFirstLetter(adapterType)}Adapter`;
+  
+  // Apply file name case formatting
+  const finalModelName = formatName(baseModelName);
+  const finalServiceName = formatName(baseServiceName);
+  const finalPortName = formatName(basePortName);
+  const finalAdapterName = formatName(baseAdapterName); 
   
   let preview = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
   preview += `\x1b[36m${basePath}src/\x1b[0m\n`;

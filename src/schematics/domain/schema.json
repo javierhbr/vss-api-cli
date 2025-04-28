@@ -57,6 +57,12 @@
         "items": ["repository", "rest", "graphql", "none"]
       }
     },
+    "fileNameCase": {
+      "type": "string",
+      "description": "The case format to use for file names.",
+      "enum": ["pascal", "camel", "kebab", "snake"],
+      "default": "pascal"
+    },
     "path": {
       "type": "string",
       "description": "The path to create the domain directory.",

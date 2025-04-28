@@ -40,6 +40,11 @@ export interface Schema {
   adapterType?: string;
   
   /**
+   * The case format to use for file names (pascal, camel, kebab, snake).
+   */
+  fileNameCase?: 'pascal' | 'camel' | 'kebab' | 'snake';
+  
+  /**
    * Custom name for the adapter (defaults to domainNameAdapterTypeAdapter if not specified).
    */
   adapterName?: string;

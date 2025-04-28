@@ -124,10 +124,12 @@ export class SchematicsCli {
         // Add reporting logic for file operations
         workflow.reporter.subscribe((event) => {
             if (event.kind === 'error') {
-                const desc = event.description || 'No description provided';
-                this.logger.error(`\x1b[31mERROR!\x1b[0m ${event.path} ${desc}`);
+                this.logger.error(`\x1b[31mERROR!\x1b[0m ${event.path}`);
                 return;
             }
+            
+            // Log all events for debugging
+            this.logger.info(`Event: ${event.kind} - Path: ${event.path}`);
 
             // Format paths consistently
             const eventPath = event.path.startsWith('/') ? event.path.slice(1) : event.path;
@@ -158,6 +160,8 @@ export class SchematicsCli {
         // Destructure force from runOptions
         const { schematic: schematicName, name, options: rawOptions, dryRun = false, force = false, outputDir } = runOptions; 
 
+        this.logger.info('Run options:', JSON.stringify(runOptions, null, 2));
+        
         const parsedOptions = this.parseSchematicArgs(rawOptions);
         if (name) {
             parsedOptions.name = name; // Add the positional name argument
@@ -249,6 +253,11 @@ export async function runSchematic(
     // Load config, potentially with path from options
     const config = configOverride || loadConfig(options.path || '.');
     
+    // Explicitly add fileNameCase to options for schematics to access
+    options.fileNameCase = config.fileNameCase;
+    console.log(`Using fileNameCase from config: ${options.fileNameCase}`);
+    console.log(`Config passed to schematic:`, JSON.stringify(config, null, 2));
+    
     // Apply config-based adjustments to options
     const adjustedOptions = applyConfigToOptions(schematicName, options, config as CliConfig);
     
@@ -297,8 +306,11 @@ function applyConfigToOptions(
     newOptions._config = {
         filePatterns: config.filePatterns[schematicName] || {},
         directories: config.directories[schematicName] || {},
-        basePath: config.basePath
+        basePath: config.basePath,
+        fileNameCase: config.fileNameCase
     };
+    
+    console.log(`Config passed to schematic:`, JSON.stringify(newOptions._config, null, 2));
     
     return newOptions;
 }

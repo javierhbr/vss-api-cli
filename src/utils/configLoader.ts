@@ -2,8 +2,9 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 
 // Default configuration
-const defaultConfig = {
+const defaultConfig: CliConfig = {
   basePath: 'src',
+  fileNameCase: 'pascal' as const,
   filePatterns: {
     handler: {
       handlerFile: '{{dashName}}.handler.ts',
@@ -63,6 +64,7 @@ export interface CliConfig {
   basePath: string;
   filePatterns: ConfigFilePatterns;
   directories: ConfigDirectories;
+  fileNameCase: 'pascal' | 'camel' | 'kebab' | 'snake';
 }
 
 /**
@@ -74,7 +76,21 @@ export function loadConfig(basePath: string = '.'): CliConfig {
   
   try {
     if (fs.existsSync(configPath)) {
-      userConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      const rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      
+      // Ensure fileNameCase is valid if present
+      if (rawConfig.fileNameCase) {
+        const validValues = ['pascal', 'camel', 'kebab', 'snake'];
+        if (validValues.includes(rawConfig.fileNameCase)) {
+          userConfig.fileNameCase = rawConfig.fileNameCase as 'pascal' | 'camel' | 'kebab' | 'snake';
+        }
+      }
+      
+      // Copy the rest of the config
+      if (rawConfig.basePath) userConfig.basePath = rawConfig.basePath;
+      if (rawConfig.filePatterns) userConfig.filePatterns = rawConfig.filePatterns;
+      if (rawConfig.directories) userConfig.directories = rawConfig.directories;
+      
       console.log('🔧 Using configuration from vss-api.config.json');
     }
   } catch (error) {
@@ -112,7 +128,16 @@ function deepMerge<T extends object>(target: T, source: Partial<T>): T {
           ) as any;
         }
       } else {
-        Object.assign(output, { [key]: source[k] });
+        if (key === 'fileNameCase') {
+          // Ensure fileNameCase is a valid value
+          const validValues = ['pascal', 'camel', 'kebab', 'snake'];
+          const value = source[k] as string;
+          if (validValues.includes(value)) {
+            Object.assign(output, { [key]: value });
+          }
+        } else {
+          Object.assign(output, { [key]: source[k] });
+        }
       }
     });
   }
