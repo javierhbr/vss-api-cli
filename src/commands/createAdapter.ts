@@ -59,6 +59,10 @@ export function createAdapterCommand(): Command {
         .option('-p, --path <outputPath>', 'Specify a custom output path')
         .option('-d, --domain <domainName>', 'Specify the domain name')
         .option('-t, --type <adapterType>', 'Type of adapter (repository, rest, graphql, queue, storage)', 'repository')
+        // CamelCase alias for type
+        .option('--adapterType <adapterType>', 'Alias for -t, --type')
+        // Optionally also generate a domain model for this adapter (no-op)
+        .option('--model', 'Generate a domain model for this adapter')
         .option('--port <portName>', 'Name of the port interface this adapter implements')
         .option('-y, --yes', 'Skip prompts and use default options')
         .hook('preAction', async () => {

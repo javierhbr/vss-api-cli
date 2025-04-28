@@ -111,8 +111,14 @@ export function createPortCommand(): Command {
         .alias('cp')
         .description('Generate a new port and adapter.')
         .argument('<n>', 'Port name (e.g., ProductRepository, UserDataAccess, PaymentGateway, NotificationService, FileStorage, AuthProvider, DataAnalytics, CacheManager)')
+        // Add option to generate domain model
+        .option('--model', 'Also generate a domain model for this port')
+        // Domain name
         .option('-d, --domain <domainName>', 'Specify the domain name')
-        .option('-a, --adapter <adapterName>', 'Specify the adapter name')
+        // Adapter type: accept both hyphen and camelCase forms
+        .option('-t, --adapter-type <type>', 'Type of adapter (repository, rest, graphql, queue, cache, storage)', 'repository')
+        .option('--adapterType <type>', 'Alias for --adapter-type')
+        // Output path
         .option('-p, --path <outputPath>', 'Specify a custom output path')
         .option('-y, --yes', 'Skip prompts and use default options')
         .hook('preAction', async () => {
@@ -185,9 +191,8 @@ Options:
         })
         .action(async (name, options) => {
             try {
-                let domainName = options.domain;
-                let adapterType = options.type;
-                let proceed = options.yes;
+                let domainName = options.domain;            let adapterType = options.adapterType;
+            let proceed = options.yes;
 
                 const existingDomains = await findExistingDomains();
 
