@@ -43,6 +43,7 @@
   "include": ["src/**/*.ts"], // Include all TypeScript files in src
   "exclude": [
     "node_modules",
+    "test-outcome",
     "dist",
     "src/templates/**/*.ts" // Exclude template files
   ] // Exclude node_modules and dist
