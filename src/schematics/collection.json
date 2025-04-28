@@ -24,7 +24,12 @@
         "description": "Generate a domain service.",
         "factory": "./service/index#default",
         "schema": "./service/schema.json"
+    },
+    "adapter": {
+        "aliases": ["ca"],
+        "description": "Generate an adapter implementation for a port.",
+        "factory": "./adapter/index#default",
+        "schema": "./adapter/schema.json"
     }
-    // Add other schematics (domain, port, service) here later
   }
 }

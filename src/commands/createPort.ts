@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import { toCamelCase, toPascalCase, displayWithPagination } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
+import { createDomainInteractively } from '../utils/domainUtils';
 
 // Helper function to find existing domains
 async function findExistingDomains(): Promise<string[]> {
@@ -19,17 +20,34 @@ async function findExistingDomains(): Promise<string[]> {
     }
 }
 
+// Helper function to ensure suffix (copied from schematic for consistency)
+function ensureSuffix(name: string, suffix: string): string {
+  return name.endsWith(suffix) ? name : name + suffix;
+}
+
 /**
  * Generate a preview tree of files that will be created for a port
  */
 function generateFilePreview(options: {
-  name: string,
+  name: string, // Raw name like PaymentsV3
   domain: string,
   path?: string,
-  adapterType: string
+  adapterType: string,
+  portInterfaceName?: string // Optional custom name
 }): string {
-  const { name, domain, path: outputPath = '', adapterType } = options;
-  const portName = toPascalCase(name);
+  const { name: rawName, domain, path: outputPath = '', adapterType, portInterfaceName: customPortName } = options;
+  
+  // Determine final port name (ensure suffix, NO adapter type)
+  let finalPortName: string;
+  if (customPortName) {
+    finalPortName = ensureSuffix(toPascalCase(customPortName), 'Port');
+  } else {
+    finalPortName = `${toPascalCase(rawName)}Port`; // Default naming: <Name>Port
+  }
+
+  // Determine final adapter name (include type)
+  const finalAdapterName = `${toPascalCase(rawName)}${toPascalCase(adapterType)}Adapter`;
+
   const domainName = toCamelCase(domain);
   const basePath = outputPath ? `${outputPath}/` : '';
   
@@ -38,15 +56,53 @@ function generateFilePreview(options: {
   
   // Port interface
   preview += `\x1b[36m├── ${domainName}/ports/\x1b[0m\n`;
-  preview += `\x1b[32m│   └── ${portName}.ts\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
+  preview += `\x1b[32m│   └── ${finalPortName}.ts\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
   
   // Adapter implementation
-  if (adapterType !== 'none') {
+  if (adapterType !== 'none') { // Assuming 'none' might be an option later
     preview += `\x1b[36m└── infra/${adapterType}/\x1b[0m\n`;
-    preview += `\x1b[32m    └── ${portName}Adapter.ts\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`;
+    preview += `\x1b[32m    └── ${finalAdapterName}.ts\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`;
   }
   
   return preview;
+}
+
+// Helper function to create a new domain and return its name
+async function createNewDomain(options: { portName: string, path?: string }): Promise<string | null> {
+  try {
+    console.log('\n📂 Creating a new domain for your port...');
+    
+    // Prompt for domain name
+    const domainAnswer = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'domainName',
+        message: 'Enter a name for the new domain:',
+        validate: (input: string) => input.trim() !== '' || 'Domain name cannot be empty'
+      }
+    ]);
+    
+    const domainName = domainAnswer.domainName;
+    
+    // Create schematic options for domain command
+    const schematicOptions = {
+      name: domainName,
+      path: options.path || '',
+      model: true,
+      service: true,
+      port: true,
+      adapterType: 'repository'
+    };
+    
+    // Call the schematic directly instead of using the command
+    console.log(`\nGenerating domain ${domainName}...`);
+    await runSchematic('domain', schematicOptions);
+    console.log(`\n✅ Domain "${domainName}" created. Now continuing with port creation...\n`);
+    return domainName;
+  } catch (error) {
+    console.error('Failed to create domain:', error);
+    return null;
+  }
 }
 
 export function createPortCommand(): Command {
@@ -127,82 +183,150 @@ Options:
             }
         })
         .action(async (name, options) => {
-            let domainName = options.domain;
-            let adapterType = options.type;
-            let proceed = options.yes;
+            try {
+                let domainName = options.domain;
+                let adapterType = options.type;
+                let proceed = options.yes;
 
-            const existingDomains = await findExistingDomains();
+                const existingDomains = await findExistingDomains();
 
-            // Prompt for domain if not provided
-            if (!domainName && existingDomains.length > 0) {
-                const domainAnswer = await inquirer.prompt({
-                    type: 'list',
-                    name: 'domainName',
-                    message: 'Which domain does this port belong to?',
-                    choices: existingDomains,
-                });
-                domainName = domainAnswer.domainName;
-            } else if (!domainName) {
-                const domainAnswer = await inquirer.prompt({
-                    type: 'input',
-                    name: 'domainName',
-                    message: 'Enter the domain name for this port (e.g., user, product, order):',
-                    validate: (input: string) => input.trim() !== '' || 'Domain name cannot be empty.',
-                });
-                domainName = domainAnswer.domainName;
-            }
-
-            // Prompt for adapter type if not provided
-            if (!adapterType) {
-                const typeAnswer = await inquirer.prompt({
-                    type: 'list',
-                    name: 'adapterType',
-                    message: 'What type of adapter will implement this port?',
-                    choices: ['repository', 'rest', 'graphql', 'queue', 'cache', 'storage'],
-                    default: 'repository',
-                });
-                adapterType = typeAnswer.adapterType;
-            }
-
-            domainName = toCamelCase(domainName);
-            const portName = toPascalCase(name);
-
-            // Generate options for the schematic
-            const schematicOptions = {
-                name: portName,
-                domain: domainName,
-                path: options.path || '',
-                adapterType
-            };
-
-            // Generate and show file preview with pagination
-            const filePreview = generateFilePreview(schematicOptions);
-            await displayWithPagination(filePreview);
-
-            // Ask for confirmation unless --yes flag is used
-            if (!options.yes) {
-                const confirmAnswer = await inquirer.prompt([
-                    {
-                        type: 'confirm',
-                        name: 'proceed',
-                        message: 'Do you want to create these files?',
-                        default: true,
+                // Prompt for domain if not provided
+                if (!domainName && existingDomains.length > 0) {
+                    const CREATE_NEW_DOMAIN = 'new domain?';
+                    const domainAnswer = await inquirer.prompt({
+                        type: 'list',
+                        name: 'domainName',
+                        message: 'Which domain does this port belong to?',
+                        choices: [...existingDomains, new inquirer.Separator(), CREATE_NEW_DOMAIN],
+                    });
+                    
+                    // Handle the option to create a new domain
+                    if (domainAnswer.domainName === CREATE_NEW_DOMAIN) {
+                        const newDomainName = await createDomainInteractively({
+                            path: options.path,
+                            message: 'Enter a name for the new domain:',
+                            showHeader: true
+                        });
+                        
+                        if (newDomainName) {
+                            console.log(`\n✅ Domain "${newDomainName}" created. Now continuing with port creation...\n`);
+                            domainName = newDomainName;
+                        } else {
+                            console.log('Domain creation cancelled or failed. Port creation process will now exit.');
+                            return;
+                        }
+                    } else {
+                        domainName = domainAnswer.domainName;
                     }
-                ]);
-                proceed = confirmAnswer.proceed;
-            }
-
-            // Proceed with file generation if confirmed
-            if (proceed) {
-                try {
-                    console.log(`Generating port ${portName}Port for domain ${domainName} with ${adapterType} adapter...`);
-                    await runSchematic('port', schematicOptions);
-                    console.log('⏱️ Port and adapter created. We just saved you 37 clicks and 2 existential crises!!');
-                } catch (error) {
-                    console.error('We tried. The  port said “nah.”:', error);
+                } else if (!domainName) {
+                    // Prompt specifically asking if they want to create a new domain or enter one
+                    const domainTypeAnswer = await inquirer.prompt({
+                        type: 'list',
+                        name: 'domainType',
+                        message: 'No existing domains found. What would you like to do?',
+                        choices: ['Create a new domain', 'Enter domain name manually']
+                    });
+                    
+                    if (domainTypeAnswer.domainType === 'Create a new domain') {
+                        const newDomainName = await createNewDomain({ portName: name, path: options.path });
+                        if (newDomainName) {
+                            domainName = newDomainName;
+                        } else {
+                            console.log('Domain creation cancelled or failed. Port creation process will now exit.');
+                            return;
+                        }
+                    } else {
+                        const domainAnswer = await inquirer.prompt({
+                            type: 'input',
+                            name: 'domainName',
+                            message: 'Enter the domain name for this port (e.g., user, product, order):',
+                            validate: (input: string) => input.trim() !== '' || 'Domain name cannot be empty.',
+                        });
+                        domainName = domainAnswer.domainName;
+                    }
                 }
-            } else {
-                console.log('\nOperation cancelled. No files were created.');
+
+                // Prompt for adapter type if not provided
+                if (!adapterType) {
+                    const typeAnswer = await inquirer.prompt({
+                        type: 'list',
+                        name: 'adapterType',
+                        message: 'What type of adapter will implement this port?',
+                        choices: ['repository', 'rest', 'graphql', 'queue', 'cache', 'storage'],
+                        default: 'repository',
+                    });
+                    adapterType = typeAnswer.adapterType;
+                }
+
+                domainName = toCamelCase(domainName);
+                const portName = toPascalCase(name);
+
+                // Generate options for the schematic (pass custom name if provided)
+                const schematicOptions = {
+                    name: portName, // Use the raw name for schematic logic
+                    domain: domainName,
+                    path: options.path || '',
+                    adapterType,
+                    portInterfaceName: options.portInterfaceName // Pass custom name if provided
+                };
+
+                // Generate and show file preview with pagination using the same options
+                const filePreview = generateFilePreview(schematicOptions);
+                await displayWithPagination(`\n🔹 Create a Port: ${portName}Port for domain ${domainName}\n${filePreview}`);
+
+                // Ask for confirmation unless --yes flag is used
+                if (!options.yes) {
+                    const confirmAnswer = await inquirer.prompt([
+                        {
+                            type: 'confirm',
+                            name: 'proceed',
+                            message: 'Do you want to create these files?',
+                            default: true,
+                        }
+                    ]);
+                    proceed = confirmAnswer.proceed;
+                }
+
+                // Proceed with file generation if confirmed
+                if (proceed) {
+                    try {
+                        console.log(`Generating port ${name}...`);
+                        await runSchematic('port', schematicOptions);
+                        console.log('\x1b[32m✅ Port created successfully! 🔗\x1b[0m');
+                    } catch (error: any) {
+                        if (error && error.message && error.message.includes('already exist')) {
+                            // Handle file already exists error with a nicer message
+                            const filePath = error.message.match(/Path \"([^\"]+)\"/)?.[1] || '';
+                            console.error('\n\x1b[33m⚠️  File conflict detected!\x1b[0m');
+                            console.error(`\x1b[33mIt looks like a file or directory already exists: ${filePath}\x1b[0m`);
+                            console.log('\n\x1b[36mSuggestions:\x1b[0m');
+                            console.log('  • Try a different port name');
+                            console.log('  • Use a different output path with -p option');
+                            console.log('  • Use --force option to overwrite existing files (coming soon)');
+                        } else {
+                            console.error('Error generating port:', error);
+                        }
+                    }
+                } else {
+                    console.log('\nOperation cancelled. No files were created.');
+                }
+            } catch (error: any) {
+                if (error && error.name === 'ExitPromptError') {
+                    console.log('\n👋 Port creation closed! Keep those interfaces clean! 🔌');
+                    process.exit(0);
+                } else if (error && error.message && error.message.includes('already exist')) {
+                    // Handle file already exists error with a nicer message
+                    const filePath = error.message.match(/Path \"([^\"]+)\"/)?.[1] || '';
+                    console.error('\n\x1b[33m⚠️  File conflict detected!\x1b[0m');
+                    console.error(`\x1b[33mIt looks like a file or directory already exists: ${filePath}\x1b[0m`);
+                    console.log('\n\x1b[36mSuggestions:\x1b[0m');
+                    console.log('  • Try a different port name');
+                    console.log('  • Use a different output path with -p option');
+                    console.log('  • Use --force option to overwrite existing files (coming soon)');
+                } else {
+                    console.error('\n\x1b[31mAn unexpected error occurred:\x1b[0m', error);
+                    process.exit(1);
+                }
             }
         });
 

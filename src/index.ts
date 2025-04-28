@@ -6,6 +6,7 @@ import { createDomainCommand } from './commands/createDomain';
 import { createHandlerCommand } from './commands/createHandler';
 import { createPortCommand } from './commands/createPort';
 import { createServiceCommand } from './commands/createService';
+import { createAdapterCommand } from './commands/createAdapter';
 import { displayWithPagination } from './utils/fileUtils';
 
 /**
@@ -21,13 +22,12 @@ function displayWelcomeMessage(action: string, description?: string): void {
   __     __   ______    ______          ______   _______   ______         ______   __        ______ 
   /  |   /  | /      \  /      \        /      \ /       \ /      |       /      \ /  |      /      |
   $$ |   $$ |/$$$$$$  |/$$$$$$  |      /$$$$$$  |$$$$$$$  |$$$$$$/       /$$$$$$  |$$ |      $$$$$$/ 
-  $$ |   $$ |$$ \__$$/ $$ \__$$/       $$ |__$$ |$$ |__$$ |  $$ |        $$ |  $$/ $$ |        $$ |  
-  $$  \ /$$/ $$      \ $$      \       $$    $$ |$$    $$/   $$ |        $$ |      $$ |        $$ |  
+  $$ |   $$ |$$ \__$$/ $$ \__$$/         $$ |__$$ |$$ |__$$ |  $$ |        $$ |  $$/ $$ |        $$ |  
+  $$  \ /$$/ $$      \ $$      \          $$    $$ |$$    $$/   $$ |        $$ |      $$ |        $$ |  
    $$  /$$/   $$$$$$  | $$$$$$  |      $$$$$$$$ |$$$$$$$/    $$ |        $$ |   __ $$ |        $$ |  
-    $$ $$/   /  \__$$ |/  \__$$ |      $$ |  $$ |$$ |       _$$ |_       $$ \__/  |$$ |_____  _$$ |_ 
+    $$ $$/   /  \__$$ |/  \__$$ |        $$ |  $$ |$$ |       _$$ |_       $$ \__/  |$$ |_____  _$$ |_ 
      $$$/    $$    $$/ $$    $$/       $$ |  $$ |$$ |      / $$   |      $$    $$/ $$       |/ $$   |
       $/      $$$$$$/   $$$$$$/        $$/   $$/ $$/       $$$$$$/        $$$$$$/  $$$$$$$$/ $$$$$$/ 
-                                                                                                     
                                                                                                      
                                                                                                      
   `;
@@ -64,6 +64,10 @@ function getWelcomeMessage(commandName: string): { action: string, description: 
     'create:port': {
       action: 'Creating a new port interface and adapter implementation',
       description: 'This will generate the port interface in the domain layer and its adapter in the infrastructure layer'
+    },
+    'create:adapter': {
+      action: 'Creating a new adapter implementation for an existing port',
+      description: 'This will generate an adapter that implements a port interface from a specific domain'
     },
     'create:service': {
       action: 'Creating a new domain service',
@@ -102,6 +106,7 @@ function displayHelpSuggestion(): void {
   console.log("  \x1b[36mvss-api-cli create:domain --help\x1b[0m    Show domain generator help");
   console.log("  \x1b[36mvss-api-cli create:handler --help\x1b[0m   Show handler generator help");
   console.log("  \x1b[36mvss-api-cli create:port --help\x1b[0m      Show port generator help");
+  console.log("  \x1b[36mvss-api-cli create:adapter --help\x1b[0m   Show adapter generator help");
   console.log("  \x1b[36mvss-api-cli create:service --help\x1b[0m   Show service generator help");
   console.log();
 }
@@ -199,9 +204,9 @@ Options:
   \x1b[33m•\x1b[0m \x1b[1mservice\x1b[0m  - Domain service class
     
 \x1b[36m💡 Examples:\x1b[0m
-  \x1b[90m$\x1b[0m vss-api-cli g handler createUser
-  \x1b[90m$\x1b[0m vss-api-cli g domain payment --path src/domains
-  \x1b[90m$\x1b[0m vss-api-cli g port UserRepository --domain user`)
+  \x1b[90m$\x1b[0m vss-api-cli create:handler createUser
+  \x1b[90m$\x1b[0m vss-api-cli create:domain payment --path src/domains
+  \x1b[90m$\x1b[0m vss-api-cli create:port UserRepository --domain user`)
     .option('--dry-run', 'Run through without making any changes')
     .option('--output-dir <path>', 'Specify output directory for generated code')
     .option('--force', 'Override existing files')
@@ -231,6 +236,7 @@ Options:
   program.addCommand(createHandlerCommand());
   program.addCommand(createPortCommand());
   program.addCommand(createServiceCommand());
+  program.addCommand(createAdapterCommand());
 
   // Handle unknown commands - show help suggestion after welcome banner
   program.on('command:*', () => {

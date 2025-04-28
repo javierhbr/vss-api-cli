@@ -12,7 +12,7 @@ export interface PortOptions {
   /**
    * The type of adapter that will implement this port
    */
-  adapterType?: 'repository' | 'rest' | 'graphql';
+  adapterType?: 'repository' | 'rest' | 'graphql' | 'queue' | 'cache'| 'storage';
   
   /**
    * The path to create the port files

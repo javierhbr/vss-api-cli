@@ -59,7 +59,6 @@
     },
     "path": {
       "type": "string",
-      "format": "path",
       "description": "The path to create the domain directory.",
       "visible": false
     },

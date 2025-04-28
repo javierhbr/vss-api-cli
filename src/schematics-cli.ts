@@ -12,6 +12,7 @@ import {
 } from '@angular-devkit/core';
 import * as path from 'path';
 import * as fs from 'fs-extra';
+import { loadConfig, CliConfig } from './utils/configLoader';
 
 interface SchematicRunOptions {
     schematic: string;
@@ -207,8 +208,8 @@ export class SchematicsCli {
                             this.logger.error(`Error executing Code recipe: ${error.message}`);
                             reject(error);
                         },
-                        complete: () => {
-                            this.logger.info(` 🛠️ - Code recipe ${schematicName} executed. All systems green..`);
+                        complete: () => { 
+                            this.logger.info(`\x1b[32m✅ Code recipe ${schematicName} executed successfully!. We just saved you 37 clicks and 2 existential crises. 🎉\x1b[0m`);
                             resolve();
                         }
                     });
@@ -235,17 +236,26 @@ export async function runSchematic(
     schematicName: string, 
     options: Record<string, any> = {},
     dryRun: boolean = false,
-    force: boolean = false // Add force parameter
+    force: boolean = false,
+    configOverride?: Partial<CliConfig>
 ): Promise<void> {
     const cli = new SchematicsCli();
     
     const schematicArgs: string[] = [];
     
-    const { name, ...restOptions } = options;
+    // Extract name from options but don't declare unused restOptions
+    const { name } = options;
     
-    Object.entries(restOptions).forEach(([key, value]) => {
+    // Load config, potentially with path from options
+    const config = configOverride || loadConfig(options.path || '.');
+    
+    // Apply config-based adjustments to options
+    const adjustedOptions = applyConfigToOptions(schematicName, options, config as CliConfig);
+    
+    Object.entries(adjustedOptions).forEach(([key, value]) => {
         // Ensure 'force' from the options object is not added to schematicArgs
         if (key === 'force') return; 
+        if (key === '_config') return; // Skip internal config object
 
         if (typeof value === 'boolean') {
             // Only add boolean flags if true
@@ -262,13 +272,33 @@ export async function runSchematic(
         await cli.run({ 
             schematic: schematicName,
             name, 
-            options: schematicArgs, // Pass args without force
-            outputDir: options.path, 
+            options: schematicArgs,
+            outputDir: adjustedOptions.path, 
             dryRun,
-            force // Pass the force flag value here to cli.run
+            force
         });
     } catch (error) {
         console.error(`Error executing Code recipe ${schematicName}:`, error);
         throw error;
     }
+}
+
+/**
+ * Apply configuration to schematic options
+ */
+function applyConfigToOptions(
+    schematicName: string, 
+    options: Record<string, any>,
+    config: CliConfig
+): Record<string, any> {
+    const newOptions = { ...options };
+    
+    // Add configuration data to options so schematics can access it
+    newOptions._config = {
+        filePatterns: config.filePatterns[schematicName] || {},
+        directories: config.directories[schematicName] || {},
+        basePath: config.basePath
+    };
+    
+    return newOptions;
 }

@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration
-const buildDir = path.join(__dirname, '..', 'doc', 'build');
+const buildDir = path.join(__dirname, '..', 'build');
 const ghPagesBranch = 'gh-pages';
 const tempDeployDir = path.join(__dirname, '..', '.deploy_docs_temp');
 

@@ -223,6 +223,18 @@ When creating a port or service, the CLI will automatically detect existing doma
 vss-api-cli create:service UserUpdater
 ```
 
+### On-the-fly Domain Creation
+
+When creating a port, if you need a new domain that doesn't exist yet, you can select the "+ Create new domain..." option when prompted for which domain the port belongs to. This will start the domain creation workflow without requiring you to run a separate command.
+
+```bash
+# When asked "Which domain does this port belong to?"
+# You can select "+ Create new domain..." from the list
+vss-api-cli create:port UserRepository
+```
+
+This streamlines the workflow by allowing you to create a new domain and immediately add a port to it in a single command.
+
 ## Generated Project Structure
 
 The CLI generates files following this structure:
@@ -354,12 +366,60 @@ Each command includes a detailed help system. Use `--help` with any command to s
 vss-api-cli create:service --help
 ```
 
-The help system provides detailed information on command options, structure of generated files, and example usage.
 
-## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## configuration file
 
-## License
+```
+{
+  "basePath": "src",
+  "filePatterns": {
+    "handler": {
+      "handlerFile": "{{name}}.handler.ts",
+      "schemaFile": "{{pascalName}}Schema.ts",
+      "dtoFile": "{{dashName}}.dto.ts"
+    },
+    "domain": {
+      "modelFile": "{{pascalName}}.ts",
+      "serviceFile": "{{pascalName}}Service.ts",
+      "portFile": "{{pascalName}}{{adapterType}}Port.ts",
+      "adapterFile": "{{pascalName}}{{adapterType}}Adapter.ts"
+    },
+    "service": {
+      "serviceFile": "{{pascalName}}Service.ts"
+    },
+    "port": {
+      "portFile": "{{pascalName}}Port.ts",
+      "adapterFile": "{{pascalName}}Adapter.ts"
+    }
+  },
+  "directories": {
+    "handler": {
+      "base": "functions", 
+      "schema": "functions/schemas"
+    },
+    "domain": {
+      "base": "{{domainName}}",
+      "model": "{{domainName}}/models",
+      "service": "{{domainName}}/services",
+      "port": "{{domainName}}/ports"
+    },
+    "adapter": {
+      "base": "infrastructure/{{adapterType}}"
+    },
+    "service": {
+      "base": "{{domainName}}/services"
+    },
+    "port": {
+      "base": "{{domainName}}/ports"
+    }
+  }
+}
+```
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+alias vss-api-cli= '/Users/javierbenavides/others/dev/poc/vss-ol-cli/dist/index.js'
+
+
+
+
+for DTO zod schemas, offer to create Request and Response DTO's
