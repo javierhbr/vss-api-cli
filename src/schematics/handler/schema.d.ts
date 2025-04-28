@@ -40,6 +40,11 @@ export interface Schema {
     createResponseDto?: boolean;
 
     /**
+     * Skip validation in handler.
+     */
+    noValidation?: boolean;
+
+    /**
      * The case style to use for file names.
      * Options: 'pascal', 'camel', 'kebab', 'snake'
      */

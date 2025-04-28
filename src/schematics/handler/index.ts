@@ -1,11 +1,10 @@
 import { strings } from '@angular-devkit/core';
 import {
   Rule, SchematicsException, apply, applyTemplates, chain,
-  filter, mergeWith, move, noop, url, Tree, SchematicContext
+  filter, mergeWith, Tree, SchematicContext
 } from '@angular-devkit/schematics';
 import { Schema } from './schema';
 import * as path from 'path';
-import * as fs from 'fs';
 
 /**
  * Process template variables in config strings
@@ -102,45 +101,49 @@ export default function (options: Schema): Rule {
     const createDtos = options.createRequestDto || options.createResponseDto;
     
     // Source templates
-    const templateSource = apply(url('./files'), [
-      // Apply template variables (standard Angular schematic way)
-      applyTemplates({
-        ...strings,
-        name: handlerName,
-        validator: !options.noValidation, // Whether to include validation
-        requestDto: options.createRequestDto,
-        responseDto: options.createResponseDto,
-        serviceDomain: options.serviceDomain || null,
-        serviceName: options.serviceName || null
-      }),
-      filter(path => {
-        // Filter out schema templates if we don't need them
-        if (!options.schema && path.includes('schema.ts.template')) {
-          return false;
+    const templateSource = apply(
+      // Use the 'files' directory for templates
+      require('@angular-devkit/schematics').url('./files'), 
+      [
+        // Apply template variables (standard Angular schematic way)
+        applyTemplates({
+          ...strings,
+          name: handlerName,
+          validator: !options.noValidation, // Whether to include validation
+          requestDto: options.createRequestDto,
+          responseDto: options.createResponseDto,
+          serviceDomain: options.serviceDomain || null,
+          serviceName: options.serviceName || null
+        }),
+        filter(filePath => {
+          // Filter out schema templates if we don't need them
+          if (!options.schema && filePath.includes('schema.ts.template')) {
+            return false;
+          }
+          // Filter out dto templates if we don't need them
+          if (!createDtos && filePath.includes('dto.ts.template')) {
+            return false;
+          }
+          return true;
+        }),
+        // Move templates to their target locations and handle naming conventions based on config
+        (entry: any) => {
+          const pathWithoutExtension = entry.path.replace('.template', '');
+          
+          if (pathWithoutExtension.endsWith('handler.ts')) {
+            entry.path = path.join(handlerPath, handlerFileName);
+          } 
+          else if (pathWithoutExtension.endsWith('schema.ts')) {
+            entry.path = path.join(dtoSchemasPath, schemaFileName);
+          }
+          else if (pathWithoutExtension.endsWith('dto.ts')) {
+            entry.path = path.join(dtoSchemasPath, dtoFileName);
+          }
+          
+          return entry;
         }
-        // Filter out dto templates if we don't need them
-        if (!createDtos && path.includes('dto.ts.template')) {
-          return false;
-        }
-        return true;
-      }),
-      // Move templates to their target locations and handle naming conventions based on config
-      (entry) => {
-        const pathWithoutExtension = entry.path.replace('.template', '');
-        
-        if (pathWithoutExtension.endsWith('handler.ts')) {
-          entry.path = path.join(handlerPath, handlerFileName);
-        } 
-        else if (pathWithoutExtension.endsWith('schema.ts')) {
-          entry.path = path.join(dtoSchemasPath, schemaFileName);
-        }
-        else if (pathWithoutExtension.endsWith('dto.ts')) {
-          entry.path = path.join(dtoSchemasPath, dtoFileName);
-        }
-        
-        return entry;
-      }
-    ]);
+      ]
+    );
     
     // Create handler file with proper naming case
     return chain([

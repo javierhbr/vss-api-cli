@@ -1,7 +1,7 @@
 import { strings } from '@angular-devkit/core';
 import {
-  Rule, SchematicsException, apply, applyTemplates, chain,
-  mergeWith, move, url, Tree, SchematicContext, filter
+  Rule, SchematicsException, chain,
+  Tree, SchematicContext
 } from '@angular-devkit/schematics';
 import { PortOptions } from './schema'; // Changed from Schema as PortOptions
 import * as path from 'path';
@@ -15,7 +15,7 @@ function ensureSuffix(name: string, suffix: string): string {
 }
 
 export default function (options: PortOptions): Rule {
-  return async (tree: Tree, context: SchematicContext) => {
+  return async (_tree: Tree, context: SchematicContext) => {
     if (!options.name) {
       throw new SchematicsException('Option (name) is required.');
     }
