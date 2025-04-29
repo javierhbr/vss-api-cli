@@ -10,86 +10,71 @@ import { loadConfig } from '../utils/configLoader';
  * @returns A formatted string representing the file tree
  */
 function generateFilePreview(options: {
-  name: string,
-  path?: string,
-  model?: boolean,
-  service?: boolean,
-  port?: boolean,
-  modelName?: string,
-  serviceName?: string,
-  portName?: string,
-  adapterType?: string,
-  adapterName?: string; // Add adapterName parameter
+  name: string;
+  path?: string;
+  model?: boolean;
+  service?: boolean;
+  port?: boolean;
+  modelName?: string;
+  serviceName?: string;
+  portName?: string;
+  adapterType?: string;
+  adapterName?: string;
 }): string {
-  const { 
-    name, 
-    path: outputPath = '', 
-    model = true, 
-    service = true, 
-    port = true, 
+  const {
+    name,
+    path: out = '',
+    model = true,
+    service = true,
+    port = true,
     modelName,
     serviceName,
     portName,
     adapterType = 'repository',
-    adapterName // Destructure adapterName
+    adapterName,
   } = options;
-  
   const domainName = toCamelCase(name);
-  const basePath = outputPath ? `${outputPath}/` : '';
-  
-  // Load configuration to determine file naming conventions
-  const config = loadConfig(outputPath);
-  const fileNameCase = config.fileNameCase || 'pascal';
-  
-  // Format name based on config
-  const formatName = (baseName: string) => {
-    return fileNameCase === 'camel' ? toCamelCase(baseName) : toPascalCase(baseName);
-  };
-  
-  console.log(`Preview using fileNameCase: ${fileNameCase}`);
-  
-  // Use custom names if provided, otherwise derive from domain name
-  const baseModelName = modelName || name;
-  const baseServiceName = serviceName || `${name}Service`;
-  const basePortName = portName || `${name}${capitalizeFirstLetter(adapterType)}Port`;
-  const baseAdapterName = adapterName || `${name}${capitalizeFirstLetter(adapterType)}Adapter`;
-  
-  // Apply file name case formatting
-  const finalModelName = formatName(baseModelName);
-  const finalServiceName = formatName(baseServiceName);
-  const finalPortName = formatName(basePortName);
-  const finalAdapterName = formatName(baseAdapterName); 
-  
-  let preview = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
-  preview += `\x1b[36m${basePath}src/\x1b[0m\n`;
-  
+  const config = loadConfig(out);
+  const baseRoot = config.basePath;
+  const dirs = config.directories;
+  const dT = dirs.domain || {};
+  const aT = dirs.adapter || {};
+  const proc = (tmpl: string, vs: Record<string, string>) =>
+    tmpl.replace(/\{\{([^}]+)\}\}/g, (_, k) => vs[k] || tmpl);
+  const root = `${out ? `${out}/` : ''}${baseRoot}`;
+  const fmt = (s: string) =>
+    config.fileNameCase === 'camel' ? toCamelCase(s) : toPascalCase(s);
+  const mN = fmt(modelName || name);
+  const sN = fmt(serviceName || `${name}Service`);
+  const pN = fmt(portName || `${name}${capitalizeFirstLetter(adapterType)}Port`);
+  const aN = fmt(adapterName || `${name}${capitalizeFirstLetter(adapterType)}Adapter`);
+  let pv = `\n\x1b[1mFiles to be created:\x1b[0m\n\x1b[36m${root}/\x1b[0m\n`;
   if (model || service || port) {
-    preview += `\x1b[36m├── ${domainName}/\x1b[0m\n`;
-    
+    const d0 = proc(dT.base || name, { domainName });
+    pv += `\x1b[36m├── ${d0}/\x1b[0m\n`;
     if (model) {
-      preview += `\x1b[36m│   ├── models/\x1b[0m\n`;
-      preview += `\x1b[32m│   │   └── ${finalModelName}.ts\x1b[0m \x1b[90m- Domain model\x1b[0m\n`;
+      const d1 = proc(dT.model || `${name}/models`, { domainName }).split('/').pop();
+      pv += `\x1b[36m│   ├── ${d1}/\x1b[0m\n`;
+      pv += `\x1b[32m│   │   └── ${mN}.ts\x1b[0m \x1b[90m- Domain model\x1b[0m\n`;
     }
-    
     if (port) {
-      preview += `\x1b[36m│   ├── ports/\x1b[0m\n`;
-      preview += `\x1b[32m│   │   └── ${finalPortName}.ts\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
+      const d2 = proc(dT.port || `${name}/ports`, { domainName }).split('/').pop();
+      pv += `\x1b[36m│   ├── ${d2}/\x1b[0m\n`;
+      pv += `\x1b[32m│   │   └── ${pN}.ts\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
     }
-    
     if (service) {
-      preview += `\x1b[36m│   └── services/\x1b[0m\n`;
-      preview += `\x1b[32m│       └── ${finalServiceName}.ts\x1b[0m \x1b[90m- Domain service implementation\x1b[0m\n`;
+      const d3 = proc(dT.service || `${name}/services`, { domainName }).split('/').pop();
+      pv += `\x1b[36m│   └── ${d3}/\x1b[0m\n`;
+      pv += `\x1b[32m│       └── ${sN}.ts\x1b[0m \x1b[90m- Domain service implementation\x1b[0m\n`;
     }
   }
-  
   if (port && adapterType !== 'none') {
-    preview += `\x1b[36m└── infra/\x1b[0m\n`;
-    preview += `\x1b[36m    └── ${adapterType}/\x1b[0m\n`;
-    // Use finalAdapterName in the preview
-    preview += `\x1b[32m        └── ${finalAdapterName}.ts\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`; 
+    const a0 = proc(aT.base || `infra/${adapterType}`, { adapterType, domainName }).split('/');
+    pv += `\x1b[36m└── ${a0[0]}/\x1b[0m\n`;
+    pv += `\x1b[36m    └── ${a0[1]}/\x1b[0m\n`;
+    pv += `\x1b[32m        └── ${aN}.ts\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`;
   }
-  
-  return preview;
+  return pv;
 }
 
 export function createDomainCommand(): Command {
@@ -110,61 +95,7 @@ export function createDomainCommand(): Command {
         .option('--model-name <name>', 'Custom name for the model')
         .option('--service-name <name>', 'Custom name for the service')
         .option('--port-name <name>', 'Custom name for the port interface')
-        .option('--adapter-name <name>', 'Custom name for the adapter implementation') // Add adapter name option
-        .option('--force', 'Force overwrite of existing files') // Add force option
-        .hook('preAction', async () => {
-            // Show detailed help with pagination when --help is used
-            if (process.argv.includes('--help')) {
-                const helpContent = `
-Description:
-  Creates a complete domain structure following hexagonal architecture principles.
-  This includes the domain model, services for business logic, and ports with adapters
-  for infrastructure integration.
-
-Structure Generated:
-  \`\`\`
-  src/
-  ├── {domainName}/              # Domain root folder
-  │   ├── models/                # Domain models and entities
-  │   ├── ports/                # Port interfaces for external dependencies
-  │   └── services/             # Domain services implementing business logic
-  └── infra/                    # Infrastructure implementations
-      └── {adapterType}/        # Concrete adapter implementations
-  \`\`\`
-
-Examples:
-  $ vss-api-cli create:domain user
-  $ vss-api-cli create:domain payment --path src/domains
-  $ vss-api-cli create:domain product --adapter-type rest
-  $ vss-api-cli create:domain order --no-model --no-port
-  $ vss-api-cli create:domain customer --model-name Client --service-name CustomerManagement
-
-Additional Information:
-  • Domain names are automatically converted to proper case in generated files
-  • Models use PascalCase (e.g., User)
-  • Services are suffixed with 'Service' (e.g., UserService)
-  • Ports are named based on adapter type (e.g., UserRepositoryPort)
-  • Generated code follows clean architecture principles
-  • All files include TypeScript types and documentation
-  • You can customize component names via flags or interactive prompts
-
-Options:
-  -p, --path <outputPath>     Specify a custom output path for the domain
-  -y, --yes                   Skip prompts and use default options
-  --no-model                  Skip domain model generation
-  --no-service               Skip domain service generation
-  --no-port                  Skip port interface generation
-  --adapter-type <type>      Type of adapter (repository, rest, graphql, none)
-  --model-name <name>        Custom name for the model
-  --service-name <name>      Custom name for the service
-  --port-name <name>         Custom name for the port interface
-  --adapter-name <name>      Custom name for the adapter implementation
-  -h, --help                 Display this help message
-`;
-                await displayWithPagination(helpContent);
-                process.exit(0);
-            }
-        })
+        .option('--adapter-name <name>', 'Custom name for the adapter implementation')
         .action(async (domainName, cmdOptions) => {
             try { // Add top-level try block for the action
                 const camelName = toCamelCase(domainName);

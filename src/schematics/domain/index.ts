@@ -4,7 +4,12 @@ import {
 } from '@angular-devkit/schematics';
 import { Schema } from './schema';
 import * as path from 'path';
-import { toCamelCase, toPascalCase, toDasherize, toSnakeCase } from '../../utils/fileUtils';
+import { toCamelCase, toDasherize, toPascalCase, toSnakeCase } from '@/utils/fileUtils';
+
+// Helper to process directory templates
+function processTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => vars[key] || '');
+}
 
 const { camelize } = strings;
 
@@ -57,7 +62,9 @@ export default function (options: Schema): Rule {
     const modelName = formatName(options.name);
     const classModelName = formatClassName(options.name); // For the class declaration
     const basePath = options.path || '.';
-    const srcRoot = path.join(basePath, 'src');
+    // Use configured basePath for source root
+    const config = (options as any)._config;
+    const srcRoot = path.join(basePath, config.basePath || 'src');
 
     console.log(`Using name: ${options.name}`);
     console.log(`Using formatted filename: ${modelName}`);
@@ -76,7 +83,9 @@ export default function (options: Schema): Rule {
       
       // 1. Create the model file
       if (options.model !== false) {
-        const modelDir = path.join(srcRoot, domainName, 'models');
+        // Determine model directory from config
+        const modelDirRel = processTemplate(config.directories.model, { domainName });
+        const modelDir = path.join(srcRoot, modelDirRel);
         createDir(modelDir);
         
         const modelFile = path.join(modelDir, `${modelName}.ts`);
@@ -100,7 +109,9 @@ export class ${classModelName} {
       
       // 2. Create the service file
       if (options.service !== false) {
-        const serviceDir = path.join(srcRoot, domainName, 'services');
+        // Determine service directory from config
+        const serviceDirRel = processTemplate(config.directories.service, { domainName });
+        const serviceDir = path.join(srcRoot, serviceDirRel);
         createDir(serviceDir);
         
         // Use compound name formatting for service file
@@ -142,7 +153,9 @@ export class ${serviceClassName} {
       
       // 3. Create the port file
       if (options.port !== false && options.adapterType !== 'none') {
-        const portDir = path.join(srcRoot, domainName, 'ports');
+        // Determine port directory from config
+        const portDirRel = processTemplate(config.directories.port, { domainName });
+        const portDir = path.join(srcRoot, portDirRel);
         createDir(portDir);
         
         const adapterType = options.adapterType || 'repository';
@@ -166,7 +179,9 @@ export interface ${portClassName} {
         console.log(`Created port file: ${portFile}`);
         
         // 4. Create the adapter file
-        const adapterDir = path.join(srcRoot, 'infra', adapterType);
+        // Determine adapter directory from config
+        const adapterDirRel = processTemplate(config.directories.adapter.base, { adapterType, domainName });
+        const adapterDir = path.join(srcRoot, adapterDirRel);
         createDir(adapterDir);
         
         // Format adapter name according to convention
