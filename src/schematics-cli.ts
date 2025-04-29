@@ -20,7 +20,7 @@ import { NodeJsSyncHost } from '@angular-devkit/core/node';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import { loadConfig, CliConfig } from './utils/configLoader';
-import { DryRunEvent, DryRunErrorEvent } from '@angular-devkit/schematics/src/sink/dryrun'; 
+import { DryRunEvent, DryRunErrorEvent } from '@angular-devkit/schematics/src/sink/dryrun';
 
 // Basic logger implementation compatible with LoggerApi
 class SimpleConsoleLogger extends logging.IndentLogger {
@@ -56,53 +56,87 @@ class SimpleConsoleLogger extends logging.IndentLogger {
 }
 
 export class SchematicsCli {
-    private engineHost = new NodeModulesTestEngineHost();
-    private engine: SchematicEngine<{}, {}>;
-    private logger: logging.Logger = new SimpleConsoleLogger(); 
+    private logger: logging.Logger = new SimpleConsoleLogger();
+    // We'll initialize these during workflow setup for each run
+    private engineHost!: NodeModulesTestEngineHost;
+    private engine!: SchematicEngine<{}, {}>;
 
     constructor() {
-        this.engine = new SchematicEngine(this.engineHost);
+        // We'll initialize the engine and host in the initializeWorkflow method
     }
 
     /**
      * Resolve the path to collection.json file
+     * 
+     * This function finds the collection.json file needed by the schematic engine.
+     * The EISDIR error occurs when the system attempts to read a directory as a file,
+     * so we need to be very careful to verify that we're dealing with actual files.
+     * 
+     * We prioritize the node_modules/vss-schematics location because Angular DevKit's
+     * NodeModulesTestEngineHost expects collections to be in the node_modules directory.
      */
     private resolveCollectionPath(): string {
-        // When running as a developed module (from source)
-        const projectRoot = path.resolve(__dirname, '..');
+        // Start with the current execution directory (dist)
+        const currentDir = __dirname;
+        this.logger.info(`Resolving collection from execution directory: ${currentDir}`);
         
-        // Primary preferred collection path - directly reference the known build output location
-        const mainCollectionPath = path.resolve(projectRoot, 'dist/schematics/collection.json');
+        // Define project root as one level up from the current execution directory (dist)
+        const projectRoot = path.resolve(currentDir, '..');
+        this.logger.info(`Project root identified as: ${projectRoot}`);
         
-        // Fallback paths if the main one doesn't exist
+        // First check if our special node_modules location exists - this is our ideal path
+        // that avoids EISDIR errors
+        const npmCollectionPath = path.join(projectRoot, 'node_modules', 'vss-schematics', 'collection.json');
+        if (fs.existsSync(npmCollectionPath) && fs.statSync(npmCollectionPath).isFile()) {
+            this.logger.info(`Using vss-schematics from node_modules: ${npmCollectionPath}`);
+            return npmCollectionPath;
+        }
+        
+        // If we don't have the node_modules version, try possible locations
         const possiblePaths = [
-            mainCollectionPath,
-            path.resolve(__dirname, './schematics/collection.json'),
-            path.resolve(__dirname, '../schematics/collection.json'),
-            path.resolve(process.cwd(), './dist/schematics/collection.json'),
-            path.resolve(process.cwd(), './node_modules/vss-api-cli/dist/schematics/collection.json'),
-            path.resolve(process.cwd(), './src/schematics/collection.json')
+            // Then try standard paths
+            path.join(projectRoot, 'dist', 'schematics', 'collection.json'), 
+            path.join(currentDir, 'schematics', 'collection.json'),
+            path.join(projectRoot, 'schematics', 'collection.json'),
+            path.join(process.cwd(), 'dist', 'schematics', 'collection.json'),
+            path.join(process.cwd(), 'src', 'schematics', 'collection.json')
         ];
+        
+        // Debug all possible paths we're checking
+        this.logger.debug(`Checking possible collection paths: ${JSON.stringify(possiblePaths, null, 2)}`);
         
         // Check each path and ensure it's a file, not a directory
         for (const collectionPath of possiblePaths) {
             try {
+                // First check if the path exists
                 if (fs.existsSync(collectionPath)) {
+                    // Then verify it's a file, not a directory (crucial for avoiding EISDIR)
                     const stats = fs.statSync(collectionPath);
+                    
                     if (stats.isFile()) {
-                        this.logger.info(`Using collection at: ${collectionPath}`);
+                        this.logger.info(`Found collection file: ${collectionPath}`);
                         
-                        // Verify it's valid JSON
-                        const content = fs.readFileSync(collectionPath, 'utf-8');
-                        JSON.parse(content); // Will throw if invalid
-                        
-                        return collectionPath;
+                        // Verify it's valid JSON before proceeding
+                        try {
+                            const content = fs.readFileSync(collectionPath, 'utf-8');
+                            const jsonContent = JSON.parse(content);
+                            
+                            // Validate that it's a proper collection file with the schematics property
+                            if (jsonContent && jsonContent.schematics) {
+                                this.logger.info(`Validated collection at: ${collectionPath}`);
+                                return collectionPath;
+                            } else {
+                                this.logger.warn(`File at ${collectionPath} is not a valid collection (missing schematics property)`);
+                            }
+                        } catch (jsonError) {
+                            this.logger.warn(`Error parsing JSON in ${collectionPath}: ${jsonError}`);
+                        }
                     } else {
-                        this.logger.warn(`Found path but it's not a file: ${collectionPath}`);
+                        this.logger.warn(`Path exists but is not a file: ${collectionPath}`);
                     }
                 }
             } catch (e) {
-                this.logger.warn(`Error checking collection path ${collectionPath}: ${e}`);
+                this.logger.warn(`Error accessing path ${collectionPath}: ${e}`);
             }
         }
 
@@ -154,18 +188,29 @@ export class SchematicsCli {
         const config = loadConfig('.', false); // Always load from CWD, not treating it as absolute
 
         // The workflow root should be the directory where operations happen
-        const workflowRoot = normalize(path.resolve(cwd, effectiveOutputDir)); 
+        // Make sure the path is normalized correctly to avoid path issues
+        const workflowRoot = normalize(path.resolve(cwd, effectiveOutputDir));
         this.logger.info(`Workflow root set to: ${workflowRoot}`);
 
+        // Ensure the collection path is resolved correctly
         const collectionPath = this.resolveCollectionPath();
         this.logger.info(`Collection path resolved to: ${collectionPath}`);
         
+        // Get the directory containing the collection.json file
         const collectionDir = path.dirname(collectionPath);
         this.logger.info(`Collection directory: ${collectionDir}`);
         
-        // Ensure the directory exists
-        if (!fs.existsSync(collectionDir)) {
-            throw new Error(`Collection directory not found: ${collectionDir}`);
+        // Ensure the directory exists and is actually a directory
+        try {
+            const dirStats = fs.statSync(collectionDir);
+            if (!dirStats.isDirectory()) {
+                throw new Error(`Expected directory but found file: ${collectionDir}`);
+            }
+        } catch (error: any) { // Type assertion for error to access code property
+            if (error.code === 'ENOENT') {
+                throw new Error(`Collection directory not found: ${collectionDir}`);
+            }
+            throw error;
         }
         
         const collectionName = 'vss-cli-schematics'; // Internal registration name
@@ -190,21 +235,166 @@ export class SchematicsCli {
             schemaValidation: true, 
         });
 
-        // Register the collection using the directory - the engine host will resolve collection.json within this directory
-        this.engineHost.registerCollection(collectionName, collectionDir);
-        this.logger.info(`Registered collection '${collectionName}' using directory: ${collectionDir}`);
+        // Use standard npm package resolution approach for collections
+        try {
+            // Before creating the engine, make sure schematics are in node_modules
+            // This is the key fix for the EISDIR error - having schematics in a node_modules location
+            // with proper structure that Angular DevKit expects
+            this.ensureSchematicsInNodeModules(collectionDir, collectionName);
+            
+            // Create a new engine host that will look in node_modules for packages
+            this.engineHost = new NodeModulesTestEngineHost();
+            
+            // Create the engine - now it will find our package in node_modules
+            this.engine = new SchematicEngine(this.engineHost);
+            
+            this.logger.info(`Using schematic collection '${collectionName}' from node_modules`);
+        } catch (error) {
+            this.logger.fatal(`Failed to initialize schematic engine: ${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(`Schematic engine setup failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
         
-        workflow.registry.addPostTransform(schema.transforms.addUndefinedDefaults);
+        // Register the options transform with the workflow's engine host
         workflow.engineHost.registerOptionsTransform(validateOptionsWithSchema(workflow.registry));
+        
+        // Create the collection from our engine using the npm package strategy
+        let collection;
+        try {
+            this.logger.debug(`Creating collection using name: ${collectionName}`);
+            
+            // Get the collection directly from the engine
+            // This will use NodeModulesTestEngineHost's package resolution
+            collection = this.engine.createCollection(collectionName);
+            
+            if (!collection) {
+                throw new Error(`Failed to create collection '${collectionName}'`);
+            }
+            
+            // Verify that we can access the collection description
+            this.logger.debug(`Successfully loaded collection: ${collection.description.name}`);
+            
+            // Try to list the available schematics as a basic validation
+            const schematicNames = collection.listSchematicNames();
+            this.logger.info(`Available schematics in collection: ${schematicNames.join(', ')}`);
+            
+            if (schematicNames.length === 0) {
+                this.logger.warn(`Warning: Collection contains no schematics!`);
+            }
+        } catch (error) {
+            // Provide detailed error information for troubleshooting
+            this.logger.fatal(`Failed to create collection: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.debug(`Collection name: ${collectionName}`);
+            this.logger.debug(`Collection path: ${collectionPath}`);
+            
+            // Special handling for EISDIR errors
+            if (error instanceof Error && error.message.includes('EISDIR')) {
+                this.logger.fatal(`
+EISDIR error detected. The schematic engine is trying to read a directory as a file.
+This is usually caused by incorrect collection.json path resolution.
 
-        const collection = this.engine.createCollection(collectionName);
-        if (!collection) {
-            throw new Error(`Failed to create collection '${collectionName}' from path '${collectionDir}'`);
+Try manually checking:
+- node_modules/${collectionName}/collection.json exists and is a valid file
+- node_modules/${collectionName}/package.json exists with "schematics" field
+`);
+            }
+            
+            throw new Error(`Failed to load schematics collection. Check node_modules/${collectionName} structure.`);
         }
 
-        return { collection, workflow, workflowRoot, config, collectionName, registry };
+        // Return all the objects needed for schematic execution
+        return { 
+            collection, 
+            workflow, 
+            workflowRoot, 
+            config, 
+            collectionName, 
+            registry 
+        };
     }
 
+    /**
+     * Ensures that schematic files are copied to node_modules location
+     * This is crucial to avoid EISDIR errors
+     */
+    private ensureSchematicsInNodeModules(collectionDir: string, collectionName: string): void {
+        const projectRoot = path.resolve(__dirname, '..');
+        const nodeModulesPath = path.join(projectRoot, 'node_modules', collectionName);
+        
+        try {
+            // Create the directory if it doesn't exist
+            if (!fs.existsSync(nodeModulesPath)) {
+                this.logger.debug(`Creating directory: ${nodeModulesPath}`);
+                fs.mkdirpSync(nodeModulesPath);
+            }
+            
+            // Copy all files from the collection directory to node_modules
+            this.logger.debug(`Copying schematics from ${collectionDir} to ${nodeModulesPath}`);
+            fs.copySync(collectionDir, nodeModulesPath);
+            
+            // Ensure there's a package.json in the node_modules directory
+            const packageJsonPath = path.join(nodeModulesPath, 'package.json');
+            if (!fs.existsSync(packageJsonPath)) {
+                this.logger.debug(`Creating package.json in ${nodeModulesPath}`);
+                fs.writeFileSync(packageJsonPath, JSON.stringify({
+                    name: collectionName,
+                    version: "1.0.0",
+                    description: "VSS CLI Schematics",
+                    schematics: "./collection.json"
+                }, null, 2));
+            }
+            
+            // Fix import paths in schematic files if needed
+            this.fixSchematicImportPaths(nodeModulesPath);
+            
+            this.logger.debug(`Successfully copied schematics to ${nodeModulesPath}`);
+            
+            // Copy utility files if needed
+            const utilsPath = path.join(nodeModulesPath, 'utils');
+            if (!fs.existsSync(utilsPath)) {
+                fs.mkdirSync(utilsPath, { recursive: true });
+            }
+            
+            // Copy necessary utility files from dist to node_modules
+            const fileUtilsSource = path.join(projectRoot, 'dist', 'utils', 'fileUtils.js');
+            const fileUtilsTarget = path.join(utilsPath, 'fileUtils.js');
+            if (fs.existsSync(fileUtilsSource)) {
+                fs.copyFileSync(fileUtilsSource, fileUtilsTarget);
+                this.logger.debug(`Copied utilities to ${fileUtilsTarget}`);
+            }
+        } catch (error) {
+            this.logger.warn(`Error copying schematics to node_modules: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    
+    /**
+     * Fix import paths in schematic files
+     * Sometimes the paths need to be adjusted when running from node_modules
+     */
+    private fixSchematicImportPaths(schematicsDir: string): void {
+        try {
+            // List of schematic types to fix
+            const schematicTypes = ['handler', 'domain', 'port', 'service', 'adapter'];
+            
+            // Fix paths in each schematic type
+            for (const type of schematicTypes) {
+                const indexPath = path.join(schematicsDir, type, 'index.js');
+                if (fs.existsSync(indexPath)) {
+                    let content = fs.readFileSync(indexPath, 'utf8');
+                    
+                    // Fix various import patterns that might exist
+                    content = content.replace(/require\(['"]@\/utils\/fileUtils['"]\)/g, "require('../utils/fileUtils')");
+                    content = content.replace(/require\(['"]\.\.\/\.\.\/utils\/fileUtils['"]\)/g, "require('../utils/fileUtils')");
+                    
+                    // Write back the fixed content
+                    fs.writeFileSync(indexPath, content);
+                    this.logger.debug(`Fixed import paths in ${type} schematic`);
+                }
+            }
+        } catch (error) {
+            this.logger.warn(`Error fixing import paths: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    
     async run(
         schematicName: string,
         options: any, 
@@ -285,14 +475,58 @@ export class SchematicsCli {
         });
         
         try {
-            await workflow.execute({
-                collection: collectionName, 
+            this.logger.info(`Executing schematic '${schematicName}' from collection '${collectionName}'`);
+            
+            // Get the schematic from the collection object rather than directly from the workflow
+            const schematic = collection.createSchematic(schematicName);
+            if (!schematic) {
+                throw new Error(`Could not find schematic '${schematicName}' in collection.`);
+            }
+            
+            // Fix for schema validation errors with null values:
+            // Replace null values with empty strings in the options to satisfy schema validation
+            const cleanOptions = { ...schematicOptions };
+            Object.entries(cleanOptions).forEach(([key, value]) => {
+                if (value === null && key !== '_config') {
+                    cleanOptions[key] = ''; // Replace null with empty string
+                }
+            });
+            
+            // Use the schematic directly with the workflow for execution
+            const tree$ = workflow.execute({
+                collection: collectionName,
                 schematic: schematicName,
-                options: schematicOptions, 
-                allowPrivate: true, 
-                debug: true, // Keep debug true for more info if EISDIR persists
-                logger: this.logger, 
-            }).toPromise();
+                options: cleanOptions,
+                allowPrivate: true,
+                debug: true,
+                logger: this.logger
+            });
+            
+            // Listen for various events to provide better feedback
+            tree$.subscribe({
+                error: (error: any) => {
+                    // Create a helpful error message for EISDIR errors
+                    const errorMsg = error instanceof Error ? error.message : String(error);
+                    
+                    if (errorMsg.includes('EISDIR')) {
+                        this.logger.fatal(`
+EISDIR error detected during schematic execution. This typically happens when the 
+system tries to read a directory as a file. Please check your schematic structure.
+
+Details:
+- Schematic: ${schematicName}
+- Collection: ${collectionName}
+- Working directory: ${process.cwd()}
+`);
+                    }
+                    
+                    // Make sure we still throw the error to terminate execution properly
+                    process.exitCode = 1;
+                }
+            });
+            
+            // Wait for completion
+            await tree$.toPromise();
 
             if (dryRun) {
                 this.logger.info('\n✨ Schematic run successful (dry run). No changes were made.');
