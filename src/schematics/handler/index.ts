@@ -110,8 +110,8 @@ export default function (options: Schema): Rule {
           ...strings,
           name: handlerName,
           validator: !options.noValidation, // Whether to include validation
-          requestDto: options.createRequestDto,
-          responseDto: options.createResponseDto,
+          createRequestDto: options.createRequestDto, // Fix variable name to match template usage
+          createResponseDto: options.createResponseDto,
           serviceDomain: options.serviceDomain || null,
           serviceName: options.serviceName || null
         }),
@@ -131,13 +131,28 @@ export default function (options: Schema): Rule {
           const pathWithoutExtension = entry.path.replace('.template', '');
           
           if (pathWithoutExtension.endsWith('handler.ts')) {
-            entry.path = path.join(handlerPath, handlerFileName);
+            // Use custom file path if provided, otherwise build from config
+            if (options.handlerFilePath) {
+              entry.path = options.handlerFilePath;
+            } else {
+              entry.path = path.join(handlerPath, handlerFileName);
+            }
           } 
           else if (pathWithoutExtension.endsWith('schema.ts')) {
-            entry.path = path.join(dtoSchemasPath, schemaFileName);
+            // Use custom file path if provided, otherwise build from config
+            if (options.schemaFilePath) {
+              entry.path = options.schemaFilePath;
+            } else {
+              entry.path = path.join(dtoSchemasPath, schemaFileName);
+            }
           }
           else if (pathWithoutExtension.endsWith('dto.ts')) {
-            entry.path = path.join(dtoSchemasPath, dtoFileName);
+            // Use custom file path if provided, otherwise build from config
+            if (options.dtoFilePath) {
+              entry.path = options.dtoFilePath;
+            } else {
+              entry.path = path.join(dtoSchemasPath, dtoFileName);
+            }
           }
           
           return entry;

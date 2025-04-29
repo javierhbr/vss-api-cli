@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { toCamelCase, toPascalCase, displayWithPagination } from '../utils/fileUtils';
+import { toCamelCase, toPascalCase, toDasherize, displayWithPagination, applyFilePatterns } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 import { createDomainInteractively } from '../utils/domainUtils';
 import { loadConfig } from '../utils/configLoader';
@@ -32,12 +32,31 @@ function generateFilePreview(options: {
   const { name, domain, path: basePath = '.' } = options;
   const serviceName = `${toPascalCase(name)}Service`;
   const domainName = toCamelCase(domain);
-  const previewBasePath = basePath === '.' ? '' : `${basePath}/`;
-  const srcPreviewPath = `${previewBasePath}src`;
+  const dashName = toDasherize(name);
 
+  // Load configuration
+  const config = loadConfig(basePath);
+  
+  // Template variables for file pattern processing
+  const templateVars = {
+    name,
+    pascalName: toPascalCase(name),
+    dashName,
+    camelName: toCamelCase(name),
+    domainName,
+    serviceName
+  };
+  
+  // Apply file patterns from config using our utility function
+  const serviceFileInfo = applyFilePatterns('service', 'serviceFile', config, templateVars, basePath);
+  
+  // Extract paths for display
+  const srcPath = path.join(basePath || '.', config.basePath);
+  const serviceDir = path.dirname(serviceFileInfo.filePath).replace(srcPath + '/', '');
+  
   let preview = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
-  preview += `\x1b[36m${srcPreviewPath}/${domainName}/services/\x1b[0m\n`;
-  preview += `\x1b[32m└── ${serviceName}.ts\x1b[0m \x1b[90m- Service implementation\x1b[0m\n`;
+  preview += `\x1b[36m${srcPath}/${serviceDir}/\x1b[0m\n`;
+  preview += `\x1b[32m└── ${serviceFileInfo.fileName}\x1b[0m \x1b[90m- Service implementation\x1b[0m\n`;
   
   return preview;
 }
@@ -157,8 +176,22 @@ Options:
                 domainName = toCamelCase(domainName);
                 const serviceName = toPascalCase(name);
                 
-                // Load config to get fileNameCase
+                // Load config to get fileNameCase and file pattern settings
                 const config = loadConfig(basePath);
+                
+                // Template variables for file pattern processing
+                const dashName = toDasherize(name);
+                const templateVars = {
+                    name,
+                    pascalName: serviceName,
+                    dashName,
+                    camelName: toCamelCase(name),
+                    domainName,
+                    serviceName: `${serviceName}Service`
+                };
+                
+                // Apply file patterns to get the service file path
+                const serviceFileInfo = applyFilePatterns('service', 'serviceFile', config, templateVars, basePath);
 
                 // Generate options for the schematic
                 const schematicOptions = {
@@ -166,7 +199,11 @@ Options:
                     domain: domainName,
                     path: basePath, // Pass base path to schematic
                     fileNameCase: config.fileNameCase || 'pascal',
-                    _config: config // Pass full config for more complex template processing
+                    _config: config, // Pass full config for more complex template processing
+                    
+                    // Add custom file paths
+                    serviceFilePath: serviceFileInfo.filePath,
+                    serviceFileName: serviceFileInfo.fileName
                 };
                 
                 // Generate and show file preview with pagination

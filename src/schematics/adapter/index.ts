@@ -5,6 +5,7 @@ import {
 } from '@angular-devkit/schematics';
 import { strings } from '@angular-devkit/core';
 import { AdapterSchema } from './schema';
+import * as path from 'path';
 
 export default function (options: AdapterSchema): Rule {
   return (tree: Tree, context: SchematicContext) => {
@@ -36,20 +37,30 @@ export default function (options: AdapterSchema): Rule {
     const portName = options.port;
     const domain = strings.dasherize(options.domain);
     
+    // Get configurations
+    const config = options._config || { basePath: 'src' };
+    
     // Set up output path
-    let basePath = 'src';
-    if (options.path) {
-      basePath = options.path.startsWith('/') 
-        ? options.path.substring(1) 
-        : options.path;
+    let basePath = options.path || '.';
+    
+    // Determine adapter file path
+    let adapterPath: string;
+    let adapterFileName: string;
+    
+    if (options.adapterFilePath) {
+      // Use custom file path if provided
+      adapterPath = options.adapterFilePath;
+      adapterFileName = options.adapterFileName || formatCompoundFileName(options.name, `${options.adapterType}Adapter`);
+    } else {
+      // Use default path construction
+      const srcRoot = (basePath === '.' ? '' : basePath + '/') + (config.basePath || 'src');
+      const adapterDir = `${srcRoot}/infra/${options.adapterType}`;
+      adapterFileName = formatCompoundFileName(options.name, `${options.adapterType}Adapter`);
+      adapterPath = `${adapterDir}/${adapterFileName}.ts`;
     }
-
-    // Determine adapter directory based on adapter type
-    const adapterDir = `${basePath}/infra/${options.adapterType}`;
-
-    // Create the adapter file with proper file name case
-    const adapterFileName = formatCompoundFileName(options.name, `${options.adapterType}Adapter`);
-    const adapterPath = `${adapterDir}/${adapterFileName}.ts`;
+    
+    // Get the directory from the file path
+    const adapterDir = adapterPath.substring(0, adapterPath.lastIndexOf('/'));
     
     // Check if adapter file already exists
     if (tree.exists(adapterPath)) {
@@ -58,7 +69,23 @@ export default function (options: AdapterSchema): Rule {
       return tree;
     }
     
-    const adapterContent = `import { ${portName} } from '../../${domain}/ports/${portName}';
+    // Calculate relative import path - this is more complex in the adapter case
+    // as we need to find the port path from the domain
+    let importPath: string;
+    if (options.path) {
+      // When a path is provided, ensure relative paths work correctly
+      const pathPrefix = options.path.endsWith('/') ? options.path : options.path + '/';
+      const srcRoot = pathPrefix + (config.basePath || 'src');
+      const portPath = `${srcRoot}/${domain}/ports/${portName}`;
+      importPath = tree.exists(portPath + '.ts')
+        ? path.relative(path.dirname(adapterPath), path.dirname(portPath)).replace(/\\/g, '/') + `/${portName}`
+        : `../../${domain}/ports/${portName}`; // Fallback to traditional pattern
+    } else {
+      // Traditional structure
+      importPath = `../../${domain}/ports/${portName}`;
+    }
+    
+    const adapterContent = `import { ${portName} } from '${importPath}';
 
 export class ${adapterClassName}${adapterTypeClassName}Adapter implements ${portName} {
   constructor() {

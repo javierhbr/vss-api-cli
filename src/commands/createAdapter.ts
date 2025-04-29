@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { toPascalCase, displayWithPagination } from '../utils/fileUtils';
+import { toPascalCase, toDasherize, displayWithPagination, applyFilePatterns } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 import { createDomainInteractively } from '../utils/domainUtils';
 import { loadConfig } from '../utils/configLoader';
@@ -250,6 +250,30 @@ Options:
 
                 // Load config to get fileNameCase
                 const config = loadConfig(options.path || '.');
+                const basePath = options.path || '.';
+                
+                // Determine final adapter name
+                const adapterType = options.type || 'repository';
+                const finalPortName = `${toPascalCase(options.port || availablePorts[0])}`;
+                const finalAdapterName = `${toPascalCase(name)}${toPascalCase(adapterType)}Adapter`;
+                
+                // Template variables for file pattern processing
+                const dashName = toDasherize(name);
+                const domainName = options.domain;
+                const templateVars = {
+                    name,
+                    pascalName: toPascalCase(name),
+                    dashName,
+                    camelName: name.charAt(0).toLowerCase() + name.slice(1),
+                    domainName,
+                    adapterType
+                };
+                
+                // Apply file patterns from config
+                const adapterFileInfo = applyFilePatterns('adapter', 'adapterFile', config, {
+                    ...templateVars, 
+                    name: finalAdapterName
+                }, basePath);
                 
                 // Run schematic with parsed options
                 await runSchematic(
@@ -261,7 +285,12 @@ Options:
                         adapterType: options.type || 'repository',
                         fileNameCase: config.fileNameCase || 'pascal',
                         _config: config,
-                        ...(options.path && { path: options.path })
+                        ...(options.path && { path: options.path }),
+                        
+                        // Pass file paths to schematic
+                        adapterFilePath: adapterFileInfo.filePath,
+                        adapterFileName: adapterFileInfo.fileName,
+                        portName: finalPortName
                     }
                 );
 

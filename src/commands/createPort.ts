@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { toCamelCase, toPascalCase, displayWithPagination } from '../utils/fileUtils';
+import { toCamelCase, toPascalCase, toDasherize, displayWithPagination, applyFilePatterns } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
 import { createDomainInteractively } from '../utils/domainUtils';
 import { loadConfig } from '../utils/configLoader';
@@ -269,7 +269,44 @@ Options:
                 
                 // Load config to get fileNameCase
                 const config = loadConfig(options.path || '.');
-
+                const basePath = options.path || '.';
+                
+                // Determine final port name
+                let finalPortName: string;
+                if (options.portInterfaceName) {
+                    finalPortName = ensureSuffix(toPascalCase(options.portInterfaceName), 'Port');
+                } else {
+                    finalPortName = `${toPascalCase(name)}Port`; // Default naming
+                }
+                
+                // Determine final adapter name
+                const finalAdapterName = `${toPascalCase(name)}${toPascalCase(adapterType)}Adapter`;
+                
+                // Template variables for file pattern processing
+                const dashName = toDasherize(name);
+                const templateVars = {
+                    name,
+                    pascalName: portName,
+                    dashName,
+                    camelName: toCamelCase(name),
+                    domainName,
+                    adapterType
+                };
+                
+                // Apply file patterns from config
+                const portFileInfo = applyFilePatterns('port', 'portFile', config, {
+                    ...templateVars, 
+                    name: finalPortName
+                }, basePath);
+                
+                let adapterFileInfo = null;
+                if (adapterType !== 'none') {
+                    adapterFileInfo = applyFilePatterns('adapter', 'adapterFile', config, {
+                        ...templateVars, 
+                        name: finalAdapterName
+                    }, basePath);
+                }
+                
                 // Generate options for the schematic (pass custom name if provided)
                 const schematicOptions = {
                     name: portName, // Use the raw name for schematic logic
@@ -278,7 +315,13 @@ Options:
                     adapterType,
                     portInterfaceName: options.portInterfaceName, // Pass custom name if provided
                     fileNameCase: config.fileNameCase || 'pascal',
-                    _config: config // Pass full config for more complex template processing
+                    _config: config, // Pass full config for more complex template processing
+                    
+                    // Pass file paths to schematic
+                    portFilePath: portFileInfo.filePath,
+                    portFileName: portFileInfo.fileName,
+                    adapterFilePath: adapterFileInfo?.filePath,
+                    adapterFileName: adapterFileInfo?.fileName
                 };
 
                 // Generate and show file preview with pagination using the same options

@@ -41,28 +41,44 @@ export default function (options: ServiceOptions): Rule {
     const serviceNameRaw = options.name;
     const domainName = camelize(options.domain);
     const basePath = options.path || '.'; // Use provided path or default
-    const srcRoot = path.join(basePath, 'src'); // Define the source root
-    const servicePath = path.join(srcRoot, domainName, 'services'); // Target path relative to srcRoot
-
-    // Generate service class name (always PascalCase) and filename (cased according to config)
+    
+    // Get configurations
+    const config = options._config || { basePath: 'src' };
+    const srcRoot = path.join(basePath, config.basePath || 'src'); // Source root from config
+    
+    // Determine service path and filename
+    let serviceFilePath: string;
+    let serviceFileName: string;
+    
+    if (options.serviceFilePath) {
+      // Use custom file path if provided
+      serviceFilePath = options.serviceFilePath;
+      serviceFileName = options.serviceFileName || formatCompoundFileName(serviceNameRaw, 'Service');
+    } else {
+      // Use default path construction
+      const servicePath = path.join(srcRoot, domainName, 'services'); // Target path relative to srcRoot
+      serviceFileName = formatCompoundFileName(serviceNameRaw, 'Service'); // Filename with configured case
+      serviceFilePath = path.join(servicePath, `${serviceFileName}.ts`);
+    }
+    
+    // Generate service class name (always PascalCase)
     const serviceClassName = `${classify(serviceNameRaw)}Service`; // Class name always in PascalCase
-    const serviceFileName = formatCompoundFileName(serviceNameRaw, 'Service'); // Filename with configured case
 
     // Check if domain exists (optional)
-    const domainCheckPath = path.join(srcRoot, domainName);
-    if (!tree.exists(domainCheckPath)) {
-        context.logger.warn(`Domain '${domainName}' might not exist or is empty within '${srcRoot}'. Creating service anyway.`);
+    if (config.basePath) {
+      const domainCheckPath = path.join(srcRoot, domainName);
+      if (!tree.exists(domainCheckPath)) {
+          context.logger.warn(`Domain '${domainName}' might not exist or is empty within '${srcRoot}'. Creating service anyway.`);
+      }
     }
 
     // Create service file directly with proper naming case
     const createServiceFile = () => {
       // Create the service directory if it doesn't exist
-      if (!tree.exists(servicePath)) {
-        tree.create(`${servicePath}/.gitkeep`, '');
+      const serviceDirPath = path.dirname(serviceFilePath);
+      if (!tree.exists(serviceDirPath)) {
+        tree.create(`${serviceDirPath}/.gitkeep`, '');
       }
-
-      // Create the service file with proper case
-      const serviceFilePath = path.join(servicePath, `${serviceFileName}.ts`);
       
       // If the service file already exists, throw an error
       if (tree.exists(serviceFilePath)) {

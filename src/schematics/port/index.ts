@@ -69,15 +69,32 @@ export default function (options: PortOptions): Rule {
     const adapterClassName = `${classify(portNameRaw)}${classify(adapterType)}Adapter`;
     const adapterFileName = formatCompoundFileName(portNameRaw, adapterType + 'Adapter');
 
-    const domainPath = path.join(basePath, `src/${domainName}`);
-    const infraPath = path.join(basePath, `src/infra/${adapterType}`);
+    // Get configurations
+    const config = options._config || { basePath: 'src' };
+    const srcRoot = path.join(basePath, config.basePath || 'src');
+    
+    // Determine port file path
+    let portFilePath: string;
+    if (options.portFilePath) {
+      portFilePath = options.portFilePath;
+    } else {
+      const portDirPath = path.join(srcRoot, domainName, 'ports');
+      portFilePath = path.join(portDirPath, `${portFileName}.ts`);
+    }
+    
+    // Determine adapter file path
+    let adapterFilePath: string;
+    if (options.adapterFilePath) {
+      adapterFilePath = options.adapterFilePath;
+    } else {
+      const adapterDirPath = path.join(srcRoot, 'infra', adapterType);
+      adapterFilePath = path.join(adapterDirPath, `${adapterFileName}.ts`);
+    }
     
     // Create files directly instead of using templates to have better control of filenames
     const createPortFile = (tree: Tree) => {
-      const portDirPath = path.join(domainPath, 'ports');
-      const portFilePath = path.join(portDirPath, `${portFileName}.ts`);
-      
       // Create port directory if it doesn't exist
+      const portDirPath = path.dirname(portFilePath);
       if (!tree.exists(portDirPath)) {
         tree.create(`${portDirPath}/.gitkeep`, '');
       }
@@ -97,16 +114,20 @@ export interface ${finalPortName} {
     
     // Create adapter implementation
     const createAdapterFile = (tree: Tree) => {
-      const adapterDirPath = path.join(infraPath);
-      const adapterFilePath = path.join(adapterDirPath, `${adapterFileName}.ts`);
-      
       // Create adapter directory if it doesn't exist
+      const adapterDirPath = path.dirname(adapterFilePath);
       if (!tree.exists(adapterDirPath)) {
         tree.create(`${adapterDirPath}/.gitkeep`, '');
       }
       
+      // Calculate relative import path from adapter to port
+      const importPath = path.relative(path.dirname(adapterFilePath), path.dirname(portFilePath))
+        .replace(/\\/g, '/'); // Normalize path separators for imports
+      
+      const portFileNameWithoutExt = path.basename(portFilePath, '.ts');
+      
       // Create the adapter implementation file
-      const adapterContent = `import { ${finalPortName} } from '../../${domainName}/ports/${portFileName}';
+      const adapterContent = `import { ${finalPortName} } from '${importPath.startsWith('.') ? importPath : './' + importPath}/${portFileNameWithoutExt}';
 
 // Adapter implementation for ${finalPortName}
 export class ${adapterClassName} implements ${finalPortName} {

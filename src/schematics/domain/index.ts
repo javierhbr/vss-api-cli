@@ -83,12 +83,20 @@ export default function (options: Schema): Rule {
       
       // 1. Create the model file
       if (options.model !== false) {
-        // Determine model directory from config
-        const modelDirRel = processTemplate(config.directories.model, { domainName });
-        const modelDir = path.join(srcRoot, modelDirRel);
-        createDir(modelDir);
+        let modelFile: string;
         
-        const modelFile = path.join(modelDir, `${modelName}.ts`);
+        // Use custom file path if provided, otherwise build from config
+        if (options.modelFilePath) {
+          modelFile = options.modelFilePath;
+          createDir(path.dirname(modelFile));
+        } else {
+          // Determine model directory from config
+          const modelDirRel = processTemplate(config.directories.model, { domainName });
+          const modelDir = path.join(srcRoot, modelDirRel);
+          createDir(modelDir);
+          modelFile = path.join(modelDir, `${modelName}.ts`);
+        }
+        
         const modelContent = `// Define your domain model properties and methods here
 export class ${classModelName} {
   // Example property
@@ -109,16 +117,25 @@ export class ${classModelName} {
       
       // 2. Create the service file
       if (options.service !== false) {
-        // Determine service directory from config
-        const serviceDirRel = processTemplate(config.directories.service, { domainName });
-        const serviceDir = path.join(srcRoot, serviceDirRel);
-        createDir(serviceDir);
+        let serviceFile: string;
         
         // Use compound name formatting for service file
         const serviceBaseName = options.serviceName || options.name;
         const serviceSuffix = 'Service';
         const serviceFileName = formatCompoundFileName(serviceBaseName, serviceSuffix);
         const serviceClassName = formatClassName(serviceBaseName + serviceSuffix);
+        
+        // Use custom file path if provided, otherwise build from config
+        if (options.serviceFilePath) {
+          serviceFile = options.serviceFilePath;
+          createDir(path.dirname(serviceFile));
+        } else {
+          // Determine service directory from config
+          const serviceDirRel = processTemplate(config.directories.service, { domainName });
+          const serviceDir = path.join(srcRoot, serviceDirRel);
+          createDir(serviceDir);
+          serviceFile = path.join(serviceDir, `${serviceFileName}.ts`);
+        }
         
         const adapterType = options.adapterType || 'repository';
         
@@ -130,9 +147,30 @@ export class ${classModelName} {
         
         const camelCasedPortName = camelize(portClassName);
         
-        const serviceFile = path.join(serviceDir, `${serviceFileName}.ts`);
-        const serviceContent = `import { ${classModelName} } from '../models/${modelName}';
-${options.port !== false ? `import { ${portClassName} } from '../ports/${portFileName}';` : '// No ports to import'}
+        // Determine relative import paths based on the actual file locations
+        const modelImportPath = options.modelFilePath 
+          ? path.relative(path.dirname(serviceFile), path.dirname(options.modelFilePath))
+              .replace(/^\.\.\//, '../')
+              .replace(/\\/g, '/') || '.'
+          : '../models';
+          
+        const portImportPath = options.portFilePath
+          ? path.relative(path.dirname(serviceFile), path.dirname(options.portFilePath))
+              .replace(/^\.\.\//, '../')
+              .replace(/\\/g, '/') || '.'
+          : '../ports';
+          
+        // File names without extensions
+        const modelFileNameWithoutExt = options.modelFileName 
+          ? options.modelFileName.replace(/\.ts$/, '')
+          : modelName;
+          
+        const portFileNameWithoutExt = options.portFileName
+          ? options.portFileName.replace(/\.ts$/, '')
+          : portFileName;
+          
+        const serviceContent = `import { ${classModelName} } from '${modelImportPath}/${modelFileNameWithoutExt}';
+${options.port !== false ? `import { ${portClassName} } from '${portImportPath}/${portFileNameWithoutExt}';` : '// No ports to import'}
 
 // Define your service logic here
 export class ${serviceClassName} {
@@ -153,10 +191,7 @@ export class ${serviceClassName} {
       
       // 3. Create the port file
       if (options.port !== false && options.adapterType !== 'none') {
-        // Determine port directory from config
-        const portDirRel = processTemplate(config.directories.port, { domainName });
-        const portDir = path.join(srcRoot, portDirRel);
-        createDir(portDir);
+        let portFile: string;
         
         const adapterType = options.adapterType || 'repository';
         
@@ -166,8 +201,30 @@ export class ${serviceClassName} {
         const portFileName = formatCompoundFileName(portBaseName, portSuffix);
         const portClassName = formatClassName(portBaseName + portSuffix);
         
-        const portFile = path.join(portDir, `${portFileName}.ts`);
-        const portContent = `import { ${classModelName} } from '../models/${modelName}';
+        // Use custom file path if provided, otherwise build from config
+        if (options.portFilePath) {
+          portFile = options.portFilePath;
+          createDir(path.dirname(portFile));
+        } else {
+          // Determine port directory from config
+          const portDirRel = processTemplate(config.directories.port, { domainName });
+          const portDir = path.join(srcRoot, portDirRel);
+          createDir(portDir);
+          portFile = path.join(portDir, `${portFileName}.ts`);
+        }
+        
+        // Determine relative import paths
+        const modelImportPath = options.modelFilePath 
+          ? path.relative(path.dirname(portFile), path.dirname(options.modelFilePath))
+              .replace(/^\.\.\//, '../')
+              .replace(/\\/g, '/') || '.'
+          : '../models';
+          
+        const modelFileNameWithoutExt = options.modelFileName 
+          ? options.modelFileName.replace(/\.ts$/, '')
+          : modelName;
+            
+        const portContent = `import { ${classModelName} } from '${modelImportPath}/${modelFileNameWithoutExt}';
 
 // Define your port interface here
 export interface ${portClassName} {
@@ -179,10 +236,7 @@ export interface ${portClassName} {
         console.log(`Created port file: ${portFile}`);
         
         // 4. Create the adapter file
-        // Determine adapter directory from config
-        const adapterDirRel = processTemplate(config.directories.adapter.base, { adapterType, domainName });
-        const adapterDir = path.join(srcRoot, adapterDirRel);
-        createDir(adapterDir);
+        let adapterFile: string;
         
         // Format adapter name according to convention
         const adapterBaseName = options.adapterName || options.name;
@@ -190,9 +244,41 @@ export interface ${portClassName} {
         const adapterFileName = formatCompoundFileName(adapterBaseName, adapterSuffix);
         const adapterClassName = formatClassName(adapterBaseName + adapterSuffix);
         
-        const adapterFile = path.join(adapterDir, `${adapterFileName}.ts`);
-        const adapterContent = `import { ${portClassName} } from '../../${domainName}/ports/${portFileName}';
-import { ${classModelName} } from '../../${domainName}/models/${modelName}';
+        // Use custom file path if provided, otherwise build from config
+        if (options.adapterFilePath) {
+          adapterFile = options.adapterFilePath;
+          createDir(path.dirname(adapterFile));
+        } else {
+          // Determine adapter directory from config
+          const adapterDirRel = processTemplate(config.directories.adapter.base, { adapterType, domainName });
+          const adapterDir = path.join(srcRoot, adapterDirRel);
+          createDir(adapterDir);
+          adapterFile = path.join(adapterDir, `${adapterFileName}.ts`);
+        }
+        
+        // Determine relative import paths
+        const adapterPortImportPath = options.portFilePath 
+          ? path.relative(path.dirname(adapterFile), path.dirname(options.portFilePath))
+              .replace(/^\.\.\//, '../../')
+              .replace(/\\/g, '/') 
+          : `../../${domainName}/ports`;
+          
+        const adapterModelImportPath = options.modelFilePath 
+          ? path.relative(path.dirname(adapterFile), path.dirname(options.modelFilePath))
+              .replace(/^\.\.\//, '../../')
+              .replace(/\\/g, '/') 
+          : `../../${domainName}/models`;
+          
+        const adapterPortFileNameWithoutExt = options.portFileName
+          ? options.portFileName.replace(/\.ts$/, '')
+          : portFileName;
+          
+        const adapterModelFileNameWithoutExt = options.modelFileName 
+          ? options.modelFileName.replace(/\.ts$/, '')
+          : modelName;
+          
+        const adapterContent = `import { ${portClassName} } from '${adapterPortImportPath}/${adapterPortFileNameWithoutExt}';
+import { ${classModelName} } from '${adapterModelImportPath}/${adapterModelFileNameWithoutExt}';
 
 // Define your adapter implementation here
 export class ${adapterClassName} implements ${portClassName} {

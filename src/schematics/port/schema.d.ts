@@ -39,4 +39,24 @@ export interface PortOptions {
    * Internal configuration passed from command.
    */
   _config?: any;
+  
+  /**
+   * Custom file path for port interface file (from configuration).
+   */
+  portFilePath?: string;
+  
+  /**
+   * Custom file name for port interface file (from configuration).
+   */
+  portFileName?: string;
+  
+  /**
+   * Custom file path for adapter implementation file (from configuration).
+   */
+  adapterFilePath?: string;
+  
+  /**
+   * Custom file name for adapter implementation file (from configuration).
+   */
+  adapterFileName?: string;
 }

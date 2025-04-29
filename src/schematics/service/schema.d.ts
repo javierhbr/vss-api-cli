@@ -39,4 +39,14 @@ export interface Schema {
      * Internal configuration passed from command.
      */
     _config?: any;
+    
+    /**
+     * Custom file path for service file (from configuration).
+     */
+    serviceFilePath?: string;
+    
+    /**
+     * Custom file name for service file (from configuration).
+     */
+    serviceFileName?: string;
 }

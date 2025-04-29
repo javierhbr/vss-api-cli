@@ -15,4 +15,19 @@ export interface AdapterSchema {
    * Internal configuration passed from command.
    */
   _config?: any;
+  
+  /**
+   * Custom file path for adapter file (from configuration).
+   */
+  adapterFilePath?: string;
+  
+  /**
+   * Custom file name for adapter file (from configuration).
+   */
+  adapterFileName?: string;
+  
+  /**
+   * Fully qualified port name (for import).
+   */
+  portName?: string;
 }

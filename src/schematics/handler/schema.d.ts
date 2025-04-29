@@ -54,4 +54,34 @@ export interface Schema {
      * Internal configuration passed from command.
      */
     _config?: any;
+
+    /**
+     * Custom file path for handler file (from configuration).
+     */
+    handlerFilePath?: string;
+
+    /**
+     * Custom file name for handler file (from configuration).
+     */
+    handlerFileName?: string;
+
+    /**
+     * Custom file path for schema file (from configuration).
+     */
+    schemaFilePath?: string;
+
+    /**
+     * Custom file name for schema file (from configuration).
+     */
+    schemaFileName?: string;
+
+    /**
+     * Custom file path for DTO file (from configuration).
+     */
+    dtoFilePath?: string;
+
+    /**
+     * Custom file name for DTO file (from configuration).
+     */
+    dtoFileName?: string;
 }
