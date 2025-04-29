@@ -10,6 +10,7 @@ import * as path from 'path';
  * Process template variables in config strings
  */
 function processTemplate(template: string, vars: Record<string, string>): string {
+  if (!template) return '';
   return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => vars[key] || '');
 }
 
@@ -23,7 +24,7 @@ export default function (options: Schema): Rule {
     const basePath = options.path || '.'; // Use provided path or default to current directory
     
     // Get config from options (injected by runSchematic) or use defaults
-    const config = options._config || {
+    const defaultConfig = {
       filePatterns: {
         handlerFile: '{{dashName}}.handler.ts',
         schemaFile: '{{pascalName}}Schema.ts',
@@ -35,6 +36,20 @@ export default function (options: Schema): Rule {
       },
       basePath: 'src',
       fileNameCase: 'pascal'
+    };
+
+    // Ensure we have a valid config object with all the required properties
+    const config = {
+      ...defaultConfig,
+      ...(options._config || {}),
+      filePatterns: {
+        ...defaultConfig.filePatterns,
+        ...(options._config?.filePatterns || {})
+      },
+      directories: {
+        ...defaultConfig.directories,
+        ...(options._config?.directories || {})
+      }
     };
     
     const { classify, dasherize, camelize } = strings;
@@ -100,6 +115,14 @@ export default function (options: Schema): Rule {
     // Check if we need to create Zod DTOs
     const createDtos = options.createRequestDto || options.createResponseDto;
     
+    // Make sure we have these properties defined even if undefined in options
+    if (options.createRequestDto === undefined) {
+      options.createRequestDto = false;
+    }
+    if (options.createResponseDto === undefined) {
+      options.createResponseDto = false;
+    }
+
     // Source templates
     const templateSource = apply(
       // Use the 'files' directory for templates

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "tsc && npm run copy-schematics",
-    "copy-schematics": "mkdir -p dist/schematics/{domain,handler,port,service,adapter}/files && cp -r src/schematics/domain/files/* dist/schematics/domain/files/ && cp -r src/schematics/handler/files/* dist/schematics/handler/files/ && cp -r src/schematics/port/files/* dist/schematics/port/files/ && cp -r src/schematics/service/files/* dist/schematics/service/files/ && cp src/schematics/collection.json dist/schematics/ && cp src/schematics/domain/schema.json dist/schematics/domain/ && cp src/schematics/handler/schema.json dist/schematics/handler/ && cp src/schematics/port/schema.json dist/schematics/port/ && cp src/schematics/service/schema.json dist/schematics/service/ && cp src/schematics/adapter/schema.json dist/schematics/adapter/ 2>/dev/null || true && cp src/schematics/domain/schema.d.ts dist/schematics/domain/ && cp src/schematics/handler/schema.d.ts dist/schematics/handler/ && cp src/schematics/port/schema.d.ts dist/schematics/port/ && cp src/schematics/service/schema.d.ts dist/schematics/service/ && cp src/schematics/adapter/schema.d.ts dist/schematics/adapter/ 2>/dev/null || true",
+    "copy-schematics": "cp -R src/schematics/* dist/schematics/ 2>/dev/null || true",
     "dev": "ts-node src/index.ts",
     "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1",

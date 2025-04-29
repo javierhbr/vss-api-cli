@@ -62,8 +62,39 @@ export default function (options: Schema): Rule {
     const modelName = formatName(options.name);
     const classModelName = formatClassName(options.name); // For the class declaration
     const basePath = options.path || '.';
-    // Use configured basePath for source root
-    const config = (options as any)._config;
+    
+    // Set up default config structure
+    const defaultConfig = {
+      directories: {
+        base: '{{domainName}}',
+        model: '{{domainName}}/models',
+        service: '{{domainName}}/services',
+        port: '{{domainName}}/ports'
+      },
+      filePatterns: {
+        modelFile: '{{pascalName}}.ts',
+        serviceFile: '{{pascalName}}Service.ts',
+        portFile: '{{pascalName}}{{adapterType}}Port.ts',
+        adapterFile: '{{pascalName}}{{adapterType}}Adapter.ts'
+      },
+      basePath: 'src'
+    };
+    
+    // Ensure we have a valid config object with all the required properties
+    const userConfig = (options as any)._config || {};
+    const config = {
+      ...defaultConfig,
+      ...userConfig,
+      directories: {
+        ...defaultConfig.directories,
+        ...(userConfig.directories || {})
+      },
+      filePatterns: {
+        ...defaultConfig.filePatterns,
+        ...(userConfig.filePatterns || {})
+      }
+    };
+    
     const srcRoot = path.join(basePath, config.basePath || 'src');
 
     console.log(`Using name: ${options.name}`);
@@ -91,7 +122,8 @@ export default function (options: Schema): Rule {
           createDir(path.dirname(modelFile));
         } else {
           // Determine model directory from config
-          const modelDirRel = processTemplate(config.directories.model, { domainName });
+          const modelDirTemplate = config.directories?.model || '{{domainName}}/models';
+          const modelDirRel = processTemplate(modelDirTemplate, { domainName });
           const modelDir = path.join(srcRoot, modelDirRel);
           createDir(modelDir);
           modelFile = path.join(modelDir, `${modelName}.ts`);
@@ -131,7 +163,8 @@ export class ${classModelName} {
           createDir(path.dirname(serviceFile));
         } else {
           // Determine service directory from config
-          const serviceDirRel = processTemplate(config.directories.service, { domainName });
+          const serviceDirTemplate = config.directories?.service || '{{domainName}}/services';
+          const serviceDirRel = processTemplate(serviceDirTemplate, { domainName });
           const serviceDir = path.join(srcRoot, serviceDirRel);
           createDir(serviceDir);
           serviceFile = path.join(serviceDir, `${serviceFileName}.ts`);
@@ -207,7 +240,8 @@ export class ${serviceClassName} {
           createDir(path.dirname(portFile));
         } else {
           // Determine port directory from config
-          const portDirRel = processTemplate(config.directories.port, { domainName });
+          const portDirTemplate = config.directories?.port || '{{domainName}}/ports';
+          const portDirRel = processTemplate(portDirTemplate, { domainName });
           const portDir = path.join(srcRoot, portDirRel);
           createDir(portDir);
           portFile = path.join(portDir, `${portFileName}.ts`);
@@ -250,7 +284,8 @@ export interface ${portClassName} {
           createDir(path.dirname(adapterFile));
         } else {
           // Determine adapter directory from config
-          const adapterDirRel = processTemplate(config.directories.adapter.base, { adapterType, domainName });
+          const adapterDirTemplate = config.directories.adapter?.base || 'infra/{{adapterType}}';
+          const adapterDirRel = processTemplate(adapterDirTemplate, { adapterType, domainName });
           const adapterDir = path.join(srcRoot, adapterDirRel);
           createDir(adapterDir);
           adapterFile = path.join(adapterDir, `${adapterFileName}.ts`);

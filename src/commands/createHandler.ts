@@ -92,6 +92,8 @@ export function createHandlerCommand(): Command {
         .option('-p, --path <outputPath>', 'Specify a custom base output path')
         .option('-s, --schema', 'Generate schema validation files')
         .option('--no-validation', 'Skip schema validation setup')
+        .option('--request-dto', 'Generate request DTO schema with Zod')
+        .option('--response-dto', 'Generate response DTO schema with Zod')
         .option('-y, --yes', 'Skip prompts and use default options')
         .hook('preAction', async () => {
             // Show detailed help with pagination when --help is used
@@ -230,8 +232,8 @@ Options:
                     noValidation: !schemaRequested,
                     serviceDomain: selectedService?.domain || null,
                     serviceName: selectedService?.service || null,
-                    createRequestDto,
-                    createResponseDto,
+                    createRequestDto: createRequestDto,
+                    createResponseDto: createResponseDto,
                     fileNameCase: config.fileNameCase || 'pascal',
                     _config: config, // Pass full config for more complex template processing
                     

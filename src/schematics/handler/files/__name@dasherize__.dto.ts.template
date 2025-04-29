@@ -1,0 +1,26 @@
+import { z } from 'zod';
+
+<% if (createRequestDto) { %>
+// Define the request DTO schema with Zod
+export const <%= classify(name) %>RequestDto = z.object({
+  // Define your request schema properties here
+  // Example: id: z.string().uuid(),
+  // Example: data: z.object({ name: z.string() }),
+});
+
+// TypeScript type derived from the Zod schema
+export type <%= classify(name) %>RequestDtoType = z.infer<typeof <%= classify(name) %>RequestDto>;
+<% } %>
+
+<% if (createResponseDto) { %>
+// Define the response DTO schema with Zod
+export const <%= classify(name) %>ResponseDto = z.object({
+  // Define your response schema properties here
+  // Example: id: z.string().uuid(),
+  // Example: message: z.string(),
+  // Example: data: z.object({ result: z.string() }),
+});
+
+// TypeScript type derived from the Zod schema
+export type <%= classify(name) %>ResponseDtoType = z.infer<typeof <%= classify(name) %>ResponseDto>;
+<% } %>

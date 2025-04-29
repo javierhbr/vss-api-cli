@@ -1,77 +1,91 @@
 import { 
     SchematicEngine,
-    UnsuccessfulWorkflowExecution,
-    formats
+    formats,
+    SchematicDescription, 
+    Collection // Import Collection
 } from '@angular-devkit/schematics';
 import {
     NodeModulesTestEngineHost,
-    NodeWorkflow
+    NodeWorkflow,
+    validateOptionsWithSchema 
 } from '@angular-devkit/schematics/tools';
 import { 
-    normalize
+    schema, 
+    logging, 
+    JsonObject, 
+    virtualFs,
+    normalize 
 } from '@angular-devkit/core';
+import { NodeJsSyncHost } from '@angular-devkit/core/node'; 
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import { loadConfig, CliConfig } from './utils/configLoader';
+import { DryRunEvent, DryRunErrorEvent } from '@angular-devkit/schematics/src/sink/dryrun'; 
 
-interface SchematicRunOptions {
-    schematic: string;
-    name?: string;
-    options: string[]; // Raw CLI arguments for the schematic
-    dryRun?: boolean;
-    outputDir?: string; // Optional output directory for generated code
-    force?: boolean;    // Option to disable interactive prompts
+// Basic logger implementation compatible with LoggerApi
+class SimpleConsoleLogger extends logging.IndentLogger {
+    constructor(name = 'vss-cli', parent: logging.Logger | null = null) {
+        super(name, parent);
+
+        this._observable.subscribe(entry => {
+            let color = (x: string) => x; // Default no color
+            // Explicitly type output to allow both stdout and stderr
+            let output: NodeJS.WriteStream = process.stdout; 
+            switch (entry.level) {
+                case 'info':
+                    color = (x) => `\x1b[32m${x}\x1b[0m`; // Green
+                    break;
+                case 'warn':
+                    color = (x) => `\x1b[33m${x}\x1b[0m`; // Yellow
+                    output = process.stderr;
+                    break;
+                case 'error':
+                    color = (x) => `\x1b[31m${x}\x1b[0m`; // Red
+                    output = process.stderr;
+                    break;
+                case 'fatal':
+                    color = (x) => `\x1b[41m\x1b[37m${x}\x1b[0m`; // Red background, white text
+                    output = process.stderr;
+                    break;
+            }
+            // Ensure entry.message is a string before writing
+            const message = typeof entry.message === 'string' ? entry.message : JSON.stringify(entry.message);
+            output.write(color(message) + '\n');
+        });
+    }
 }
 
 export class SchematicsCli {
     private engineHost = new NodeModulesTestEngineHost();
     private engine: SchematicEngine<{}, {}>;
-    private collectionName: string;
-    private logger = console;
+    private logger: logging.Logger = new SimpleConsoleLogger(); 
 
     constructor() {
         this.engine = new SchematicEngine(this.engineHost);
-        this.collectionName = this.resolveCollectionPath();
     }
 
     /**
      * Resolve the path to collection.json file
-     * First checks if running from source or from published package
      */
     private resolveCollectionPath(): string {
         const possiblePaths = [
-            // When running from source via ts-node
-            path.resolve(__dirname, './schematics/collection.json'),
-            
-            // When running from dist folder
-            path.resolve(__dirname, '../src/schematics/collection.json'),
-            
-            // When running from dist folder (alternative)
-            path.resolve(__dirname, './schematics/collection.json'),
-            
-            // When installed as package
-            path.resolve(process.cwd(), './node_modules/vss-api-cli/dist/schematics/collection.json'),
-            
-            // When in development, use local path
-            path.resolve(process.cwd(), './src/schematics/collection.json')
+            path.resolve(__dirname, './schematics/collection.json'), // dist/schematics/collection.json
+            path.resolve(__dirname, '../schematics/collection.json'), // dist/../schematics/collection.json (if src is sibling) - Less likely needed if build output is clean
+            path.resolve(process.cwd(), './dist/schematics/collection.json'), // project_root/dist/schematics/collection.json
+            path.resolve(process.cwd(), './node_modules/vss-api-cli/dist/schematics/collection.json'), // installed package
+            path.resolve(process.cwd(), './src/schematics/collection.json') // project_root/src/schematics/collection.json (dev) - Keep for local dev
         ];
 
         for (const collectionPath of possiblePaths) {
-            try {
-                if (fs.existsSync(collectionPath)) {
-                    console.log(`Using collection at: ${collectionPath}`);
-                    return collectionPath;
-                }
-            } catch (err) {
-                // Skip if path doesn't exist
+            if (fs.existsSync(collectionPath)) {
+                this.logger.info(`Using collection at: ${collectionPath}`);
+                return collectionPath;
             }
         }
 
-        // If collection not found in any path, use a default path
-        // The error will be reported later when trying to load the collection
-        console.warn(`Warning: Could not find collection.json in any of the expected paths.`);
-        // Make sure we always return a string (fix TypeScript error)
-        return path.resolve(__dirname, './schematics/collection.json');
+        const errorMsg = `Error: Could not find collection.json in any of the expected paths: ${possiblePaths.join(', ')}`;
+        this.logger.fatal(errorMsg);
+        throw new Error(errorMsg);
     }
 
     private parseSchematicArgs(args: string[]): Record<string, any> {
@@ -80,244 +94,176 @@ export class SchematicsCli {
 
         for (const arg of args) {
             if (arg.startsWith('--')) {
-                // Explicitly ignore --force argument here
-                if (arg === '--force') {
-                    currentKey = null; // Reset key if it was --force
+                if (arg === '--force') { // Skip --force, handled by workflow
+                    currentKey = null; 
                     continue; 
                 }
-                // Convert kebab-case to camelCase
                 currentKey = arg.substring(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-                options[currentKey] = true; // Default to true for flags
+                options[currentKey] = true; 
             } else if (arg.startsWith('-')) {
-                console.warn(`Short alias '${arg}' ignored. Use long form (e.g., --option).`);
+                this.logger.warn(`Short alias '${arg}' ignored. Use long form (e.g., --option).`);
             } else if (currentKey !== null) {
-                // Assign value to the last seen key
                 const value = arg === 'true' ? true : arg === 'false' ? false : arg;
                 options[currentKey] = value;
-                currentKey = null; // Reset key after assigning value
+                currentKey = null; 
             }
         }
         return options;
     }
+    
+    // Pass dryRun and force to initializeWorkflow
+    private async initializeWorkflow(basePath: string, dryRun: boolean, force: boolean): Promise<{
+        // Return the Collection object
+        collection: Collection<{}, {}>; 
+        workflow: NodeWorkflow;
+        workflowRoot: string;
+        config: CliConfig | null;
+        collectionName: string; 
+        registry: schema.SchemaRegistry;
+    }> {
+        const workflowRoot = normalize(path.resolve(process.cwd(), basePath)); 
+        this.logger.info(`Loading config from path: ${basePath}`);
+        const config = loadConfig(basePath); 
 
-    private createWorkflow(options: { dryRun: boolean, force: boolean, outputDir?: string }): NodeWorkflow { // Add force parameter
-        const { dryRun, force } = options; // Destructure force
+        const collectionPath = this.resolveCollectionPath();
+        const collectionDir = path.dirname(collectionPath);
+        const collectionName = 'vss-cli-schematics'; // Internal registration name
+
+        this.logger.info(`🔧 Using configuration from ${config ? 'vss-api.config.json' : 'defaults'}`);
+        if (config) {
+            this.logger.info(`Using fileNameCase from config: ${config.fileNameCase || 'default (pascal)'}`);
+        }
+
+        const registry = new schema.CoreSchemaRegistry(formats.standardFormats);
         
-        // SIMPLE APPROACH: Just use the current working directory as root
-        // We'll handle the output directory later in the schematic itself
-        const root = normalize(process.cwd());
+        const host = new virtualFs.ScopedHost(new NodeJsSyncHost(), normalize(workflowRoot));
         
-        this.logger.info(`Using workflow root: ${root}`);
-        
-        const workflow = new NodeWorkflow(root, {
-            dryRun,
-            force, // Pass force to the workflow options
-            resolvePaths: [process.cwd(), __dirname],
-            schemaValidation: true,
+        // Pass force and dryRun here
+        const workflow = new NodeWorkflow(host, {
+            force: force, 
+            dryRun: dryRun, 
+            packageManager: 'npm', 
+            registry: registry,
+            resolvePaths: [process.cwd(), workflowRoot, collectionDir], 
+            schemaValidation: true, 
         });
 
-        // Register standard formats - proper TypeScript syntax
-        for (const format of formats.standardFormats) {
-            workflow.registry.addFormat(format);
+        this.engineHost.registerCollection(collectionName, collectionDir);
+        workflow.registry.addPostTransform(schema.transforms.addUndefinedDefaults);
+        workflow.engineHost.registerOptionsTransform(validateOptionsWithSchema(workflow.registry));
+
+        const collection = this.engine.createCollection(collectionName);
+        if (!collection) {
+            throw new Error(`Failed to create collection '${collectionName}' from path '${collectionDir}'`);
+        }
+        // No need to get description separately here
+
+        return { collection, workflow, workflowRoot, config, collectionName, registry };
+    }
+
+    async run(
+        schematicName: string,
+        options: any, 
+        dryRun = false,
+        force = false
+    ): Promise<void> {
+        const outputDir = options.outputDir || options.path || '.';
+        // Get the collection object
+        const { collection, workflow, workflowRoot, config, collectionName } = await this.initializeWorkflow(outputDir, dryRun, force); 
+
+        this.logger.info(`Using output directory: ${outputDir}`);
+        this.logger.info(`Using workflow root: ${workflowRoot}`);
+
+        const parsedArgs = this.parseSchematicArgs(options.options || []);
+        const schematicOptions: JsonObject = {
+            ...parsedArgs, 
+            ...options,   
+            _config: config || {}, 
+            fileNameCase: config?.fileNameCase || options.fileNameCase || 'pascal', 
+        };
+        
+        delete schematicOptions.options;    
+        delete schematicOptions.outputDir; 
+        delete schematicOptions.y;         
+        delete schematicOptions.yes;       
+        delete schematicOptions.force;     // Handled by workflow
+        delete schematicOptions.dryRun;    // Handled by workflow
+
+        this.logger.info(`Executing schematic: ${schematicName}`);
+        this.logger.debug(`Collection Name for Execution: ${collectionName}`);
+        // Correctly use collection.listSchematicNames()
+        this.logger.debug(`Available Schematics in Collection: ${collection.listSchematicNames().join(', ')}`); 
+        this.logger.debug(`Schematic Options Passed to Workflow: ${JSON.stringify(schematicOptions, null, 2)}`);
+
+        // Correctly use collection.createSchematic() to get the description
+        let schematicDescription: SchematicDescription<{}, {}> | undefined;
+        try {
+            // Get the schematic object first
+            const schematic = collection.createSchematic(schematicName); 
+            // Then get its description
+            schematicDescription = schematic.description; 
+        } catch (e) {
+             // Provide a more informative error if schematic loading fails
+             throw new Error(`Schematic "${schematicName}" not found or failed to load in collection "${collection.description.name}". Original error: ${e instanceof Error ? e.message : e}`);
         }
         
-        // Add reporting logic for file operations
-        workflow.reporter.subscribe((event) => {
-            if (event.kind === 'error') {
-                this.logger.error(`\x1b[31mERROR!\x1b[0m ${event.path}`);
-                return;
-            }
-            
-            // Log all events for debugging
-            this.logger.info(`Event: ${event.kind} - Path: ${event.path}`);
+        // Ensure schematicDescription is valid before proceeding (though createSchematic should throw if not found)
+        if (!schematicDescription) {
+             throw new Error(`Failed to retrieve description for schematic "${schematicName}" in collection "${collection.description.name}".`);
+        }
 
-            // Format paths consistently
-            const eventPath = event.path.startsWith('/') ? event.path.slice(1) : event.path;
-
+        workflow.reporter.subscribe((event: DryRunEvent) => {
+            const eventPath = event.path.startsWith('/') ? event.path.substring(1) : event.path; 
             switch (event.kind) {
+                case 'error':
+                    const errorEvent = event as DryRunErrorEvent;
+                    this.logger.error(`ERROR! ${eventPath} ${errorEvent.description}`); 
+                    break;
                 case 'update':
-                    this.logger.info(`\x1b[33mUPDATE\x1b[0m ${eventPath} (${event.content.length} bytes)`);
+                    this.logger.info(`UPDATE ${eventPath} (${event.content.length} bytes)`);
                     break;
                 case 'create':
-                    this.logger.info(`\x1b[35mCREATE\x1b[0m ${eventPath} (${event.content.length} bytes)`);
+                    this.logger.info(`CREATE ${eventPath} (${event.content.length} bytes)`);
                     break;
                 case 'delete':
-                    this.logger.info(`\x1b[31mDELETE\x1b[0m ${eventPath}`);
+                    this.logger.info(`DELETE ${eventPath}`);
                     break;
                 case 'rename':
-                    const toPath = event.to.startsWith('/') ? event.to.slice(1) : event.to;
-                    this.logger.info(`\x1b[34mRENAME\x1b[0m ${eventPath} => ${toPath}`);
-                    break;
-                default:
+                    const renamePath = event.to.startsWith('/') ? event.to.substring(1) : event.to; 
+                    this.logger.info(`RENAME ${eventPath} => ${renamePath}`);
                     break;
             }
         });
-
-        return workflow;
-    }
-
-    async run(runOptions: SchematicRunOptions): Promise<void> {
-        // Destructure force from runOptions
-        const { schematic: schematicName, name, options: rawOptions, dryRun = false, force = false, outputDir } = runOptions; 
-
-        this.logger.info('Run options:', JSON.stringify(runOptions, null, 2));
         
-        const parsedOptions = this.parseSchematicArgs(rawOptions);
-        if (name) {
-            parsedOptions.name = name; // Add the positional name argument
-        }
-        // Remove force from parsedOptions - let the workflow handle it
-        // delete parsedOptions.force; // Or just don't add it
-
-        // Add path option if outputDir is provided
-        if (outputDir) {
-            this.logger.info(`Using output directory: ${outputDir}`);
-            parsedOptions.path = outputDir;
-        }
-
         try {
-            // Create collection
-            const collection = this.engine.createCollection(this.collectionName);
-            
-            try {
-                // Check if schematic exists
-                collection.createSchematic(schematicName, true);
-                
-                // Set up workflow, passing the force flag correctly
-                const workflow = this.createWorkflow({ dryRun, force, outputDir }); 
+            await workflow.execute({
+                collection: collectionName, 
+                schematic: schematicName,
+                options: schematicOptions, 
+                allowPrivate: true, 
+                debug: true, 
+                logger: this.logger, 
+            }).toPromise();
 
-                this.logger.info(`Executing schematic: ${schematicName}`);
-                // Log options passed to the schematic itself (without force)
-                this.logger.info(`Schematic Options: ${JSON.stringify(parsedOptions)}`); 
-                
-                if (dryRun) {
-                    this.logger.info('Running in dry-run mode - no changes will be made to the filesystem');
-                }
-                if (force) {
-                    // Log that the workflow is in force mode
-                    this.logger.info('Workflow running in force mode - existing files may be overwritten'); 
-                }
-
-                // Execute the schematic with proper workflow
-                return new Promise<void>((resolve, reject) => {
-                    workflow.execute({
-                        collection: this.collectionName,
-                        schematic: schematicName,
-                        options: parsedOptions, // Pass options without force
-                    }).subscribe({
-                        next: () => {
-                            // Processing tree transformations
-                        },
-                        error: (error) => {
-                            this.logger.error(`Error executing Code recipe: ${error.message}`);
-                            reject(error);
-                        },
-                        complete: () => { 
-                            this.logger.info(`\x1b[32m✅ Code recipe ${schematicName} executed successfully!. We just saved you 37 clicks and 2 existential crises. 🎉\x1b[0m`);
-                            resolve();
-                        }
-                    });
-                });
-            } catch (error) {
-                throw new Error(`Code recipe '${schematicName}' not found in collection '${this.collectionName}' or is invalid.`);
-            }
-        } catch (err) {
-            if (err instanceof UnsuccessfulWorkflowExecution) {
-                this.logger.error('The Code recipe workflow failed. See above.');
+            if (dryRun) {
+                this.logger.info('\n✨ Schematic run successful (dry run). No changes were made.');
             } else {
-                this.logger.error(`Error: ${(err as Error).message}`);
+                this.logger.info('\n✨ Schematic run successful!');
             }
-            throw err; // Re-throw for the main index.ts to catch
+        } catch (e: any) {
+            this.logger.fatal(`❌ Schematic run failed: ${e.message || e}`, e);
+            process.exitCode = 1; 
         }
     }
 }
 
-/**
- * Helper function to run a schematic with the given options.
- * This simplifies schematic execution from command files.
- */
+// Helper function remains the same
 export async function runSchematic(
-    schematicName: string, 
-    options: Record<string, any> = {},
-    dryRun: boolean = false,
-    force: boolean = false,
-    configOverride?: Partial<CliConfig>
+    schematicName: string,
+    options: any, 
+    dryRun = false,
+    force = false
 ): Promise<void> {
     const cli = new SchematicsCli();
-    
-    const schematicArgs: string[] = [];
-    
-    // Extract name from options but don't declare unused restOptions
-    const { name } = options;
-    
-    // Get full resolved path if a path option is provided
-    let configPath = options.path || '.';
-    if (configPath.startsWith('~')) {
-      configPath = configPath.replace(/^~/, process.env.HOME || process.env.USERPROFILE || '');
-    }
-    console.log(`Loading config from path: ${configPath}`);
-    
-    // Load config, potentially with path from options
-    const config = configOverride || loadConfig(configPath);
-    
-    // Explicitly add fileNameCase to options for schematics to access
-    options.fileNameCase = config.fileNameCase;
-    console.log(`Using fileNameCase from config: ${options.fileNameCase}`);
-    console.log(`Config passed to schematic:`, JSON.stringify(config, null, 2));
-    
-    // Apply config-based adjustments to options
-    const adjustedOptions = applyConfigToOptions(schematicName, options, config as CliConfig);
-    
-    Object.entries(adjustedOptions).forEach(([key, value]) => {
-        // Ensure 'force' from the options object is not added to schematicArgs
-        if (key === 'force') return; 
-        if (key === '_config') return; // Skip internal config object
-
-        if (typeof value === 'boolean') {
-            // Only add boolean flags if true
-            if (value) { 
-                schematicArgs.push(`--${key}`);
-            }
-        } else if (value !== undefined && value !== null && value !== '') {
-            schematicArgs.push(`--${key}`);
-            schematicArgs.push(value.toString());
-        }
-    });
-    
-    try {
-        await cli.run({ 
-            schematic: schematicName,
-            name, 
-            options: schematicArgs,
-            outputDir: adjustedOptions.path, 
-            dryRun,
-            force
-        });
-    } catch (error) {
-        console.error(`Error executing Code recipe ${schematicName}:`, error);
-        throw error;
-    }
-}
-
-/**
- * Apply configuration to schematic options
- */
-function applyConfigToOptions(
-    schematicName: string, 
-    options: Record<string, any>,
-    config: CliConfig
-): Record<string, any> {
-    const newOptions = { ...options };
-    
-    // Add configuration data to options so schematics can access it
-    newOptions._config = {
-        filePatterns: config.filePatterns[schematicName] || {},
-        directories: config.directories[schematicName] || {},
-        basePath: config.basePath,
-        fileNameCase: config.fileNameCase
-    };
-    
-    console.log(`Config passed to schematic:`, JSON.stringify(newOptions._config, null, 2));
-    
-    return newOptions;
+    await cli.run(schematicName, options, dryRun, force);
 }

@@ -211,22 +211,27 @@ Options:
     .option('--output-dir <path>', 'Specify output directory for generated code')
     .option('--force', 'Override existing files')
     .allowUnknownOption()
-    .action(async (schematic: string, name: string | undefined, cmdOptions: { dryRun?: boolean, outputDir?: string }) => {
+    .action(async (schematic: string, name: string | undefined, cmdOptions: { dryRun?: boolean, outputDir?: string, force?: boolean }) => {
       const cli = new SchematicsCli();
-      const schematicArgs = process.argv.slice(process.argv.indexOf(name || schematic) + 1)
-        .filter(arg => arg !== '--dry-run')
-        .filter(arg => arg !== '--output-dir' && !process.argv[process.argv.indexOf(arg) - 1]?.includes('--output-dir'));
+      // Pass the schematic name, the command options object (which includes name, path, etc.), dryRun, and force flags
+      const allOptions = {
+        name: name,
+        ...cmdOptions, // Includes dryRun, outputDir, force from commander
+        // Capture any unknown options passed after schematic and name
+        options: process.argv.slice(process.argv.indexOf(name || schematic) + (name ? 1 : 0) + 1)
+      };
 
       try {
-        await cli.run({ 
+        // Call run with separate arguments
+        await cli.run(
           schematic, 
-          name, 
-          options: schematicArgs,
-          dryRun: cmdOptions.dryRun,
-          outputDir: cmdOptions.outputDir
-        });
+          allOptions, // Pass the combined options object
+          !!cmdOptions.dryRun, // Pass dryRun flag
+          !!cmdOptions.force // Pass force flag
+        );
       } catch (error) {
-        console.error('Error running schematic:', error);
+        // Error logging is handled within cli.run
+        // console.error('Error running schematic:', error);
         process.exit(1);
       }
     });
