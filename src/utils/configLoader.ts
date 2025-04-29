@@ -69,9 +69,16 @@ export interface CliConfig {
 
 /**
  * Load configuration from vss-api.config.json, with fallback to defaults
+ * @param basePath Base path where to look for the config file
+ * @param useAbsolutePath If true, basePath is treated as absolute, otherwise as relative to CWD
  */
-export function loadConfig(basePath: string = '.'): CliConfig {
-  const configPath = path.join(process.cwd(), basePath, 'vss-api.config.json');
+export function loadConfig(basePath: string = '.', useAbsolutePath: boolean = false): CliConfig {
+  // If basePath is absolute and useAbsolutePath is true, use it directly
+  // Otherwise, resolve it relative to CWD
+  const configPath = useAbsolutePath && path.isAbsolute(basePath)
+    ? path.join(basePath, 'vss-api.config.json')
+    : path.join(process.cwd(), basePath, 'vss-api.config.json');
+  
   let userConfig: Partial<CliConfig> = {};
   
   console.log(`Looking for config at: ${configPath}`);

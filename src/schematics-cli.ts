@@ -68,18 +68,41 @@ export class SchematicsCli {
      * Resolve the path to collection.json file
      */
     private resolveCollectionPath(): string {
+        // When running as a developed module (from source)
+        const projectRoot = path.resolve(__dirname, '..');
+        
+        // Primary preferred collection path - directly reference the known build output location
+        const mainCollectionPath = path.resolve(projectRoot, 'dist/schematics/collection.json');
+        
+        // Fallback paths if the main one doesn't exist
         const possiblePaths = [
-            path.resolve(__dirname, './schematics/collection.json'), // dist/schematics/collection.json
-            path.resolve(__dirname, '../schematics/collection.json'), // dist/../schematics/collection.json (if src is sibling) - Less likely needed if build output is clean
-            path.resolve(process.cwd(), './dist/schematics/collection.json'), // project_root/dist/schematics/collection.json
-            path.resolve(process.cwd(), './node_modules/vss-api-cli/dist/schematics/collection.json'), // installed package
-            path.resolve(process.cwd(), './src/schematics/collection.json') // project_root/src/schematics/collection.json (dev) - Keep for local dev
+            mainCollectionPath,
+            path.resolve(__dirname, './schematics/collection.json'),
+            path.resolve(__dirname, '../schematics/collection.json'),
+            path.resolve(process.cwd(), './dist/schematics/collection.json'),
+            path.resolve(process.cwd(), './node_modules/vss-api-cli/dist/schematics/collection.json'),
+            path.resolve(process.cwd(), './src/schematics/collection.json')
         ];
-
+        
+        // Check each path and ensure it's a file, not a directory
         for (const collectionPath of possiblePaths) {
-            if (fs.existsSync(collectionPath)) {
-                this.logger.info(`Using collection at: ${collectionPath}`);
-                return collectionPath;
+            try {
+                if (fs.existsSync(collectionPath)) {
+                    const stats = fs.statSync(collectionPath);
+                    if (stats.isFile()) {
+                        this.logger.info(`Using collection at: ${collectionPath}`);
+                        
+                        // Verify it's valid JSON
+                        const content = fs.readFileSync(collectionPath, 'utf-8');
+                        JSON.parse(content); // Will throw if invalid
+                        
+                        return collectionPath;
+                    } else {
+                        this.logger.warn(`Found path but it's not a file: ${collectionPath}`);
+                    }
+                }
+            } catch (e) {
+                this.logger.warn(`Error checking collection path ${collectionPath}: ${e}`);
             }
         }
 
@@ -112,43 +135,65 @@ export class SchematicsCli {
     }
     
     // Pass dryRun and force to initializeWorkflow
-    private async initializeWorkflow(basePath: string, dryRun: boolean, force: boolean): Promise<{
+    private async initializeWorkflow(
+        effectiveOutputDir: string, // The actual directory where files should be written
+        dryRun: boolean, 
+        force: boolean
+    ): Promise<{
         // Return the Collection object
         collection: Collection<{}, {}>; 
         workflow: NodeWorkflow;
-        workflowRoot: string;
-        config: CliConfig | null;
+        workflowRoot: string; // This should be the effectiveOutputDir normalized
+        config: CliConfig | null; // Config loaded from CWD
         collectionName: string; 
         registry: schema.SchemaRegistry;
     }> {
-        const workflowRoot = normalize(path.resolve(process.cwd(), basePath)); 
-        this.logger.info(`Loading config from path: ${basePath}`);
-        const config = loadConfig(basePath); 
+        // Always load config directly from the current working directory
+        const cwd = process.cwd();
+        this.logger.info(`Loading config relative to CWD: ${cwd}`);
+        const config = loadConfig('.', false); // Always load from CWD, not treating it as absolute
+
+        // The workflow root should be the directory where operations happen
+        const workflowRoot = normalize(path.resolve(cwd, effectiveOutputDir)); 
+        this.logger.info(`Workflow root set to: ${workflowRoot}`);
 
         const collectionPath = this.resolveCollectionPath();
+        this.logger.info(`Collection path resolved to: ${collectionPath}`);
+        
         const collectionDir = path.dirname(collectionPath);
+        this.logger.info(`Collection directory: ${collectionDir}`);
+        
+        // Ensure the directory exists
+        if (!fs.existsSync(collectionDir)) {
+            throw new Error(`Collection directory not found: ${collectionDir}`);
+        }
+        
         const collectionName = 'vss-cli-schematics'; // Internal registration name
 
-        this.logger.info(`🔧 Using configuration from ${config ? 'vss-api.config.json' : 'defaults'}`);
+        this.logger.info(`🔧 Using configuration from ${config ? 'vss-api.config.json found in CWD' : 'defaults'}`);
         if (config) {
             this.logger.info(`Using fileNameCase from config: ${config.fileNameCase || 'default (pascal)'}`);
         }
 
         const registry = new schema.CoreSchemaRegistry(formats.standardFormats);
         
-        const host = new virtualFs.ScopedHost(new NodeJsSyncHost(), normalize(workflowRoot));
+        // Host is scoped to the workflowRoot (where files will be written)
+        const host = new virtualFs.ScopedHost(new NodeJsSyncHost(), workflowRoot); 
         
-        // Pass force and dryRun here
         const workflow = new NodeWorkflow(host, {
             force: force, 
             dryRun: dryRun, 
             packageManager: 'npm', 
             registry: registry,
-            resolvePaths: [process.cwd(), workflowRoot, collectionDir], 
+            // Resolve paths should include CWD for node_modules, workflowRoot for output, and collectionDir for schematics
+            resolvePaths: [cwd, path.resolve(cwd, effectiveOutputDir), collectionDir], 
             schemaValidation: true, 
         });
 
+        // Register the collection using the directory - the engine host will resolve collection.json within this directory
         this.engineHost.registerCollection(collectionName, collectionDir);
+        this.logger.info(`Registered collection '${collectionName}' using directory: ${collectionDir}`);
+        
         workflow.registry.addPostTransform(schema.transforms.addUndefinedDefaults);
         workflow.engineHost.registerOptionsTransform(validateOptionsWithSchema(workflow.registry));
 
@@ -156,7 +201,6 @@ export class SchematicsCli {
         if (!collection) {
             throw new Error(`Failed to create collection '${collectionName}' from path '${collectionDir}'`);
         }
-        // No need to get description separately here
 
         return { collection, workflow, workflowRoot, config, collectionName, registry };
     }
@@ -167,31 +211,36 @@ export class SchematicsCli {
         dryRun = false,
         force = false
     ): Promise<void> {
-        const outputDir = options.outputDir || options.path || '.';
-        // Get the collection object
-        const { collection, workflow, workflowRoot, config, collectionName } = await this.initializeWorkflow(outputDir, dryRun, force); 
+        // Determine the base directory for output. Prioritize --output-dir, then --path, then CWD.
+        const outputBase = options.outputDir || options.path || '.'; 
+        
+        // Initialize workflow with the determined output base directory
+        const { collection, workflow, workflowRoot, config, collectionName } = await this.initializeWorkflow(outputBase, dryRun, force); 
 
-        this.logger.info(`Using output directory: ${outputDir}`);
-        this.logger.info(`Using workflow root: ${workflowRoot}`);
+        this.logger.info(`Effective output directory: ${workflowRoot}`); // Use workflowRoot for clarity
 
         const parsedArgs = this.parseSchematicArgs(options.options || []);
+        
+        // Pass the config loaded from CWD to the schematic
         const schematicOptions: JsonObject = {
             ...parsedArgs, 
             ...options,   
-            _config: config || {}, 
+            _config: config || {}, // Use config loaded by initializeWorkflow
+            // Ensure fileNameCase from config (or defaults) is passed correctly
             fileNameCase: config?.fileNameCase || options.fileNameCase || 'pascal', 
         };
         
+        // Clean up options not meant for the schematic itself
         delete schematicOptions.options;    
-        delete schematicOptions.outputDir; 
+        delete schematicOptions.outputDir; // Handled by workflow root
+        delete schematicOptions.path;      // Handled by workflow root
         delete schematicOptions.y;         
         delete schematicOptions.yes;       
-        delete schematicOptions.force;     // Handled by workflow
-        delete schematicOptions.dryRun;    // Handled by workflow
+        delete schematicOptions.force;     // Handled by workflow constructor
+        delete schematicOptions.dryRun;    // Handled by workflow constructor
 
         this.logger.info(`Executing schematic: ${schematicName}`);
         this.logger.debug(`Collection Name for Execution: ${collectionName}`);
-        // Correctly use collection.listSchematicNames()
         this.logger.debug(`Available Schematics in Collection: ${collection.listSchematicNames().join(', ')}`); 
         this.logger.debug(`Schematic Options Passed to Workflow: ${JSON.stringify(schematicOptions, null, 2)}`);
 
@@ -241,7 +290,7 @@ export class SchematicsCli {
                 schematic: schematicName,
                 options: schematicOptions, 
                 allowPrivate: true, 
-                debug: true, 
+                debug: true, // Keep debug true for more info if EISDIR persists
                 logger: this.logger, 
             }).toPromise();
 
@@ -251,7 +300,8 @@ export class SchematicsCli {
                 this.logger.info('\n✨ Schematic run successful!');
             }
         } catch (e: any) {
-            this.logger.fatal(`❌ Schematic run failed: ${e.message || e}`, e);
+            // Log the full error, including stack trace if available
+            this.logger.fatal(`❌ Schematic run failed: ${e.message || e}`, e.stack || e); 
             process.exitCode = 1; 
         }
     }
