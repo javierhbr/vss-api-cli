@@ -5,6 +5,7 @@ import {
 } from '@angular-devkit/schematics';
 import { Schema } from './schema';
 import * as path from 'path';
+import { normalizePath } from '../utils/configUtils';
 
 /**
  * Process template variables in config strings

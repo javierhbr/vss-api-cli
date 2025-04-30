@@ -4,6 +4,7 @@ import {
 } from '@angular-devkit/schematics';
 import { Schema } from './schema';
 import * as path from 'path';
+import { normalizePath } from '../utils/configUtils';
 
 // Importing strings directly from Angular DevKit to ensure compatibility
 const { classify, dasherize, camelize, underscore } = strings;

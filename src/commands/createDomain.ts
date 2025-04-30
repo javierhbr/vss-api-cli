@@ -235,7 +235,7 @@ export function createDomainCommand(): Command {
                         {
                             type: 'confirm',
                             name: 'createPort',
-                            message: (ans) => `Create a port interface (${toPascalCase(toCamelCase(ans.serviceName || finalDomainName))}RepositoryPort)?`, // Use serviceName if provided
+                            message: 'Create a port interface?',
                             default: true,
                         },
                         {
