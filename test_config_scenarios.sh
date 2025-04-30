@@ -295,6 +295,272 @@ check_file_exists "src/handlers/DefaultTest.handler.ts" "Handler location with d
 
 cd "$ORIGINAL_PWD" # Back to TEST_ROOT for this run
 
+# --- Scenario 7: Express API Config ---
+print_header "Scenario 7: Express API Config (Camel Case, MVC Structure)"
+SCENARIO_DIR="express-api"
+mkdir -p "$SCENARIO_DIR"
+cd "$SCENARIO_DIR"
+
+cat << EOF > vss-api.config.json
+{
+  "basePath": "src",
+  "fileNameCase": "camel",
+  "filePatterns": {
+    "handler": {
+      "handlerFile": "{{camelName}}Controller.js",
+      "schemaFile": "{{camelName}}Schema.js",
+      "dtoFile": "{{camelName}}Model.js"
+    },
+    "service": {
+      "serviceFile": "{{camelName}}Service.js"
+    }
+  },
+  "directories": {
+    "handler": {
+      "base": "controllers",
+      "schema": "schemas"
+    },
+    "service": {
+      "base": "services"
+    },
+    "domain": {
+      "model": "models"
+    }
+  }
+}
+EOF
+
+# Create directory structure first to ensure the CLI doesn't have issues with missing dirs
+mkdir -p src/controllers src/schemas src/services src/models
+
+echo "⚙️ Generating handler 'userAuthentication'..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:handler userAuthentication --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "⚙️ Generating service 'jwtAuth'..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:service jwtAuth --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "🔍 Validating..." | tee -a "$LOG_FILE_ABS"
+check_file_exists "src/controllers/userAuthenticationController.js" "Express handler controller"
+check_file_exists "src/schemas/userAuthenticationSchema.js" "Express handler schema"
+check_file_exists "src/services/jwtAuthService.js" "Express service"
+
+cd "$ORIGINAL_PWD" # Back to TEST_ROOT for this run
+
+# --- Scenario 8: Microservices Config ---
+print_header "Scenario 8: Microservices Config (Domain-Driven Folder Structure)"
+SCENARIO_DIR="microservices"
+mkdir -p "$SCENARIO_DIR"
+cd "$SCENARIO_DIR"
+
+cat << EOF > vss-api.config.json
+{
+  "basePath": "services",
+  "fileNameCase": "kebab",
+  "filePatterns": {
+    "handler": {
+      "handlerFile": "{{dashName}}-controller.ts",
+      "schemaFile": "{{dashName}}-schema.ts",
+      "dtoFile": "{{dashName}}-dto.ts" 
+    },
+    "domain": {
+      "modelFile": "{{dashName}}-aggregate.ts",
+      "serviceFile": "{{dashName}}-service.ts",
+      "portFile": "{{dashName}}-repository-interface.ts"
+    },
+    "adapter": {
+      "adapterFile": "{{dashName}}-{{adapterType}}-adapter.ts"
+    }
+  },
+  "directories": {
+    "domain": {
+      "base": "{{domainName}}/domain",
+      "model": "{{domainName}}/domain/model",
+      "service": "{{domainName}}/domain/services", 
+      "port": "{{domainName}}/domain/ports"
+    },
+    "handler": {
+      "base": "{{domainName}}/api",
+      "schema": "{{domainName}}/api/schemas"
+    },
+    "adapter": {
+      "base": "{{domainName}}/infrastructure/adapters/{{adapterType}}"
+    }
+  }
+}
+EOF
+
+# Create directories to ensure they exist before generating files
+mkdir -p services/order/domain/model services/order/domain/ports services/order/domain/services \
+         services/order/api services/order/api/schemas \
+         services/order/infrastructure/adapters/repository
+
+echo "⚙️ Generating domain 'order'..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:domain order --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "⚙️ Generating handler 'createOrder' for domain 'order'..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:handler createOrder --domain order --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "⚙️ Generating adapter 'orderRepository' for domain 'order' with type 'repository'..." | tee -a "$LOG_FILE_ABS" 
+npx vss-api-cli create:adapter orderRepository --domain order --adapterType repository --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "⚙️ Generating service 'orderService' for domain 'order'..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:service orderService --domain order --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "🔍 Validating..." | tee -a "$LOG_FILE_ABS"
+check_file_exists "services/order/domain/model/order-aggregate.ts" "Order aggregate model"
+check_file_exists "services/order/domain/ports/order-repository-interface.ts" "Order repository interface" 
+check_file_exists "services/order/domain/services/order-service.ts" "Order service"
+check_file_exists "services/order/api/create-order-controller.ts" "Order API controller"
+check_file_exists "services/order/api/schemas/create-order-schema.ts" "Order API schema"
+check_file_exists "services/order/infrastructure/adapters/repository/order-repository-adapter.ts" "Order repository adapter"
+
+cd "$ORIGINAL_PWD" # Back to TEST_ROOT for this run
+
+# --- Scenario 9: GraphQL API Config ---
+print_header "Scenario 9: GraphQL API Config (Apollo Server Structure)"
+SCENARIO_DIR="graphql-api"
+mkdir -p "$SCENARIO_DIR"
+cd "$SCENARIO_DIR"
+
+cat << EOF > vss-api.config.json
+{
+  "basePath": "src",
+  "fileNameCase": "camel",
+  "filePatterns": {
+    "handler": {
+      "handlerFile": "{{camelName}}.resolver.ts",
+      "schemaFile": "{{camelName}}.graphql",
+      "dtoFile": "{{camelName}}.types.ts"
+    },
+    "service": {
+      "serviceFile": "{{camelName}}.service.ts"
+    },
+    "domain": {
+      "modelFile": "{{camelName}}.entity.ts"
+    }
+  },
+  "directories": {
+    "handler": {
+      "base": "graphql/resolvers",
+      "schema": "graphql/schemas"
+    },
+    "service": {
+      "base": "services"
+    },
+    "domain": {
+      "model": "entities"
+    }
+  }
+}
+EOF
+
+# Create directory structure first to ensure proper file creation
+mkdir -p src/graphql/resolvers src/graphql/schemas src/services src/entities
+
+echo "⚙️ Generating handler 'productQuery'..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:handler productQuery --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "⚙️ Generating service 'productInventory'..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:service productInventory --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+# Add domain to test entity creation
+echo "⚙️ Generating domain 'product'..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:domain product --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "🔍 Validating..." | tee -a "$LOG_FILE_ABS"
+check_file_exists "src/graphql/resolvers/productQuery.resolver.ts" "GraphQL resolver"
+check_file_exists "src/graphql/schemas/productQuery.graphql" "GraphQL schema" 
+check_file_exists "src/services/productInventory.service.ts" "Product service"
+check_file_exists "src/entities/product.entity.ts" "Product entity"
+
+cd "$ORIGINAL_PWD" # Back to TEST_ROOT for this run
+
+# --- Scenario 10: Configuration Inheritance ---
+print_header "Scenario 10: Configuration Inheritance (Base + Extended Configs)"
+SCENARIO_DIR="config-inheritance"
+mkdir -p "$SCENARIO_DIR"
+cd "$SCENARIO_DIR"
+
+# Create a base config directory structure
+mkdir -p "base-config"
+cat << EOF > "base-config/vss-api.config.json"
+{
+  "basePath": "src",
+  "fileNameCase": "pascal",
+  "filePatterns": {
+    "handler": {
+      "handlerFile": "{{pascalName}}Handler.ts"
+    },
+    "service": {
+      "serviceFile": "{{pascalName}}Service.ts"
+    }
+  },
+  "directories": {
+    "handler": {
+      "base": "api/handlers"
+    },
+    "service": {
+      "base": "core/services"
+    }
+  }
+}
+EOF
+
+# Create an extending config directory
+mkdir -p "extended-config"
+cat << EOF > "extended-config/vss-api.config.json"
+{
+  "extends": "../base-config/vss-api.config.json",
+  "filePatterns": {
+    "domain": {
+      "modelFile": "{{pascalName}}Model.ts",
+      "portFile": "I{{pascalName}}Repository.ts"
+    },
+    "adapter": {
+      "adapterFile": "{{pascalName}}Adapter.ts"
+    }
+  },
+  "directories": {
+    "domain": {
+      "model": "domain/models",
+      "port": "domain/ports",
+      "service": "{{domainName}}/services"
+    },
+    "adapter": {
+      "base": "infra/repository"
+    }
+  }
+}
+EOF
+
+cd "extended-config"
+
+# Create directories to ensure they exist before generating files
+mkdir -p src/api/handlers src/domain/models src/domain/ports src/infra/repository src/inheritance/services
+
+echo "⚙️ Generating handler 'ConfigTester' from extended config..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:handler ConfigTester --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "⚙️ Generating domain 'Inheritance' from extended config..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:domain Inheritance --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "⚙️ Generating service 'InheritanceService' for domain 'Inheritance'..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:service InheritanceService --domain Inheritance --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "⚙️ Generating adapter 'InheritanceAdapter'..." | tee -a "$LOG_FILE_ABS"
+npx vss-api-cli create:adapter InheritanceAdapter --yes 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "🔍 Validating..." | tee -a "$LOG_FILE_ABS"
+# Test inherited config (from base)
+check_file_exists "src/api/handlers/ConfigTesterHandler.ts" "Handler from inherited config"
+# Test extended config
+check_file_exists "src/domain/models/InheritanceModel.ts" "Domain model from extended config"
+check_file_exists "src/domain/ports/IInheritanceRepository.ts" "Domain port from extended config"
+check_file_exists "src/inheritance/services/InheritanceService.ts" "Domain service from extended config"
+check_file_exists "src/infra/repository/InheritanceAdapter.ts" "Adapter from extended config"
+
+cd "$ORIGINAL_PWD" # Back to TEST_ROOT for this run
+
 # --- Final Message ---
 print_header "Configuration Scenario Tests Finished"
 echo "Test artifacts generated in: ${TEST_ROOT_ABS}" | tee -a "$LOG_FILE_ABS"
