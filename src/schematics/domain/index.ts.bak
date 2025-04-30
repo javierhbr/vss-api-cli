@@ -98,7 +98,7 @@ export default function (options: Schema): Rule {
       configBasePath = configBasePath.substring(1);
     }
     
-    const srcRoot = normalizePath(configBasePath); // Just use the relative path directly
+    const srcRoot = configBasePath; // Just use the relative path directly
 
     console.log(`Using name: ${options.name}`);
     console.log(`Using formatted filename: ${modelName}`);
@@ -134,7 +134,7 @@ export default function (options: Schema): Rule {
           // Determine model directory from config
           const modelDir = processTemplate(config.directories?.model || `${domainName}/models`, 
             { domainName, adapterType: options.adapterType || 'repository' });
-          const dir = path.join(normalizePath(srcRoot), modelDir);
+          const dir = path.join(srcRoot, modelDir);
           const normalizedDir = createDir(dir);
           
           // Determine model file name from config
@@ -185,7 +185,7 @@ export class ${classModelName} {
           // Determine service directory from config
           const serviceDir = processTemplate(config.directories?.service || `${domainName}/services`, 
             { domainName, adapterType: options.adapterType || 'repository' });
-          const dir = path.join(normalizePath(srcRoot), serviceDir);
+          const dir = path.join(srcRoot, serviceDir);
           const normalizedDir = createDir(dir);
           
           // Determine service file name from config
@@ -239,7 +239,7 @@ export class ${serviceClassName} {
           // Determine port directory from config
           const portDir = processTemplate(config.directories?.port || `${domainName}/ports`, 
             { domainName, adapterType: options.adapterType || 'repository' });
-          const dir = path.join(normalizePath(srcRoot), portDir);
+          const dir = path.join(srcRoot, portDir);
           const normalizedDir = createDir(dir);
           
           // Determine port file name from config
@@ -282,7 +282,7 @@ export interface ${portClassName} {
         // Determine adapter directory from config
         const adapterDir = processTemplate(config.directories?.adapter?.base || `infra/${options.adapterType || 'repository'}`, 
           { domainName, adapterType: options.adapterType || 'repository' });
-        const dir = path.join(normalizePath(srcRoot), adapterDir);
+        const dir = path.join(srcRoot, adapterDir);
         const normalizedDir = createDir(dir);
         
         // Determine adapter file name from config

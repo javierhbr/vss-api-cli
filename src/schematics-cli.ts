@@ -320,6 +320,9 @@ Try manually checking:
         const projectRoot = path.resolve(__dirname, '..');
         const nodeModulesPath = path.join(projectRoot, 'node_modules', collectionName);
         
+        // Ensure we normalize any absolute paths to be relative, to avoid EISDIR errors
+        this.normalizeSchematicsPathsInModules();
+        
         try {
             // Create the directory if it doesn't exist
             if (!fs.existsSync(nodeModulesPath)) {
@@ -392,6 +395,44 @@ Try manually checking:
             }
         } catch (error) {
             this.logger.warn(`Error fixing import paths: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    
+    /**
+     * Normalizes paths in schematic files to ensure they're relative rather than absolute
+     * This prevents EISDIR errors and ensures files are created in the correct location
+     */
+    private normalizeSchematicsPathsInModules(): void {
+        try {
+            const projectRoot = path.resolve(__dirname, '..');
+            const collectionNames = ['vss-schematics', 'vss-cli-schematics'];
+            
+            // Fix paths in all possible schematic locations
+            for (const collectionName of collectionNames) {
+                const nodeModulesPath = path.join(projectRoot, 'node_modules', collectionName);
+                if (!fs.existsSync(nodeModulesPath)) continue;
+                
+                // List of schematic types to check
+                const schematicTypes = ['handler', 'domain', 'port', 'service', 'adapter'];
+                
+                for (const type of schematicTypes) {
+                    const schematicIndexPath = path.join(nodeModulesPath, type, 'index.js');
+                    if (!fs.existsSync(schematicIndexPath)) continue;
+                    
+                    // Read the file content
+                    let content = fs.readFileSync(schematicIndexPath, 'utf8');
+                    
+                    // Find and fix absolute paths like '/src/handlers'
+                    content = content.replace(/path\.join\(['"]\/([^'"]+)['"]/g, "path.join('$1'");
+                    content = content.replace(/['"]\/([^'"\/]+\/[^'"]+)['"]/g, "'$1'");
+                    
+                    // Write the modified content back
+                    fs.writeFileSync(schematicIndexPath, content);
+                    this.logger.debug(`Fixed absolute paths in ${type} schematic`);
+                }
+            }
+        } catch (error) {
+            this.logger.warn(`Error normalizing schematic paths: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     

@@ -92,17 +92,17 @@ export default function (options: Schema): Rule {
     const configBasePath = config.basePath.startsWith('/') ? config.basePath.substring(1) : config.basePath;
     
     // All paths should be constructed as relative paths (no leading slashes)
-    const srcRoot = normalizePath(configBasePath);
+    const srcRoot = configBasePath;
     const handlerDir = processTemplate(config.directories?.base || 'handlers', templateVars);
     
     // Create relative paths for handlers and schemas
-    const handlerPath = path.join(normalizePath(srcRoot), handlerDir);
+    const handlerPath = path.join(srcRoot, handlerDir);
     
     // For schemas directory, use config or default
     const schemaDir = config.directories?.schema ? 
       processTemplate(config.directories.schema, templateVars) : 
       path.join(handlerDir, 'schemas');
-    const dtoSchemasPath = path.join(normalizePath(srcRoot), schemaDir);
+    const dtoSchemasPath = path.join(srcRoot, schemaDir);
     
     console.log(`Handler path: ${handlerPath}`);
     console.log(`DTO/Schema path: ${dtoSchemasPath}`);
@@ -221,7 +221,7 @@ export default function (options: Schema): Rule {
           if (!tree.exists(normalizedPath)) {
             console.log(`Ensuring directory exists: ${normalizedPath}`);
             // We don't need to create .gitkeep files
-            // console.log(`Ensuring directory exists: ${normalizePath(dirPath)}`);
+            // tree.create(`${normalizedPath}/.gitkeep`, '');
           }
         });
         return tree;
