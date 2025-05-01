@@ -267,6 +267,7 @@ You can use these variables in your file and directory patterns:
 | `{{pascalName}}` | PascalCase version | `CreateUser` |
 | `{{dashName}}` | Kebab-case version | `create-user` |
 | `{{camelName}}` | CamelCase version | `createUser` |
+| `{{snakeName}}` | Snake_case version | `create_user` |
 | `{{domainName}}` | Domain name (if applicable) | `payment` |
 | `{{serviceName}}` | Service name (if applicable) | `PaymentProcessor` |
 | `{{adapterType}}` | Adapter type (if applicable) | `repository` |
@@ -289,14 +290,14 @@ You can control the case style of generated file names with the `fileNameCase` o
 
 Available options for `fileNameCase`:
 
-| Option | Description | Example File Names |
-|--------|-------------|-------------------|
-| `pascal` | PascalCase (default) | `Product.ts`, `ProductService.ts` |
-| `camel` | camelCase | `product.ts`, `productService.ts` |
-| `kebab` | kebab-case | `product.ts`, `product-service.ts` |
-| `snake` | snake_case | `product.ts`, `product_service.ts` |
+| Option | Description | Example File Names | Recommended Template Variable |
+|--------|-------------|-------------------|------------------------------|
+| `pascal` | PascalCase (default) | `Product.ts`, `ProductService.ts` | `{{pascalName}}` |
+| `camel` | camelCase | `product.ts`, `productService.ts` | `{{camelName}}` |
+| `kebab` | kebab-case | `product.ts`, `product-service.ts` | `{{dashName}}` |
+| `snake` | snake_case | `product.ts`, `product_service.ts` | `{{snakeName}}` |
 
-This setting affects the actual filenames generated on disk, while maintaining the appropriate casing in imports and class names within the files.
+This setting affects the actual filenames generated on disk, while maintaining the appropriate casing in imports and class names within the files. For best results, use the recommended template variable in your file patterns that matches your chosen `fileNameCase` setting.
 
 Example with `fileNameCase: "camel"`:
 - Filename: `product.ts`

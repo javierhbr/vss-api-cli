@@ -43,6 +43,7 @@ function generateFilePreview(options: {
     pascalName: toPascalCase(name),
     dashName,
     camelName: toCamelCase(name),
+    snakeName: dashName.replace(/-/g, '_'),
     domainName,
     serviceName
   };

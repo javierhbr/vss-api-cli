@@ -42,6 +42,7 @@ function generateFilePreview(options: {
     pascalName,
     dashName: handlerName,
     camelName: handlerName.replace(/-([a-z])/g, (_, c) => c.toUpperCase()),
+    snakeName: handlerName.replace(/-/g, '_'),
     domainName: serviceDomain || '',
     serviceName: serviceName || ''
   };

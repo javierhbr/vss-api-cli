@@ -129,6 +129,11 @@ export function applyFilePatterns(
     const filePatterns = config.filePatterns?.[componentType] || {};
     const directories = config.directories?.[componentType] || {};
     
+    // Ensure all case format variables are available
+    if (!templateVars.snakeName && templateVars.name) {
+        templateVars.snakeName = toSnakeCase(templateVars.name);
+    }
+    
     // Get the file pattern or use a default
     let filePattern: string;
     switch (fileType) {

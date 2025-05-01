@@ -7,6 +7,7 @@ import { createHandlerCommand } from './commands/createHandler';
 import { createPortCommand } from './commands/createPort';
 import { createServiceCommand } from './commands/createService';
 import { createAdapterCommand } from './commands/createAdapter';
+import { createValidateConfigCommand } from './commands/validateConfig';
 import { displayWithPagination } from './utils/fileUtils';
 
 /**
@@ -102,12 +103,13 @@ function getWelcomeMessage(commandName: string): { action: string, description: 
  */
 function displayHelpSuggestion(): void {
   console.log("\x1b[33mℹ️  Need help? Run one of these commands:\x1b[0m");
-  console.log("  \x1b[36mvss-api-cli --help\x1b[0m             Show general CLI help");
+  console.log("  \x1b[36mvss-api-cli --help\x1b[0m                 Show general CLI help");
   console.log("  \x1b[36mvss-api-cli create:domain --help\x1b[0m    Show domain generator help");
   console.log("  \x1b[36mvss-api-cli create:handler --help\x1b[0m   Show handler generator help");
   console.log("  \x1b[36mvss-api-cli create:port --help\x1b[0m      Show port generator help");
   console.log("  \x1b[36mvss-api-cli create:adapter --help\x1b[0m   Show adapter generator help");
   console.log("  \x1b[36mvss-api-cli create:service --help\x1b[0m   Show service generator help");
+  console.log("  \x1b[36mvss-api-cli validate-config --help\x1b[0m  Show config validation help");
   console.log();
 }
 
@@ -242,6 +244,7 @@ Options:
   program.addCommand(createPortCommand());
   program.addCommand(createServiceCommand());
   program.addCommand(createAdapterCommand());
+  createValidateConfigCommand(program);
 
   // Handle unknown commands - show help suggestion after welcome banner
   program.on('command:*', () => {

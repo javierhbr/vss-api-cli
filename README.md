@@ -364,14 +364,17 @@ vss-api-cli create:service --help
 
 
 
-## configuration file
+## Configuration File
 
-```
+The CLI can be configured using a `vss-api.config.json` file in your project root. This allows you to customize file patterns, directory structures, and naming conventions.
+
+```json
 {
   "basePath": "src",
+  "fileNameCase": "pascal",
   "filePatterns": {
     "handler": {
-      "handlerFile": "{{name}}.handler.ts",
+      "handlerFile": "{{pascalName}}.handler.ts",
       "schemaFile": "{{pascalName}}Schema.ts",
       "dtoFile": "{{dashName}}.dto.ts"
     },
@@ -411,6 +414,46 @@ vss-api-cli create:service --help
     }
   }
 }
+```
+
+### File Naming Case Consistency
+
+The `fileNameCase` setting determines how generated files will be named. Valid values are:
+- `pascal` (PascalCase) - Example: `UserService.ts`
+- `camel` (camelCase) - Example: `userService.ts`
+- `kebab` (kebab-case) - Example: `user-service.ts`
+- `snake` (snake_case) - Example: `user_service.ts`
+
+This setting should be consistent with the template variables used in `filePatterns`. Available template variables:
+
+- `{{name}}` - Raw name as provided
+- `{{pascalName}}` - PascalCase version
+- `{{camelName}}` - camelCase version
+- `{{dashName}}` - kebab-case version
+- `{{snakeName}}` - snake_case version
+
+### Configuration Validation
+
+The CLI provides tools to validate your configuration files for consistency:
+
+```bash
+# Validate all config files in your project
+vss-api-cli validate-config
+
+# Validate a specific config file
+vss-api-cli validate-config -p path/to/vss-api.config.json
+
+# Automatically fix inconsistencies (creates backups)
+vss-api-cli validate-config --fix
+
+# Standalone validation script
+npx vss-validate-config
+```
+
+You can also run the validation script directly:
+
+```bash
+node validate-file-cases-fixed.js [path] [--fix]
 ```
 
 alias vss-api-cli= '/Users/javierbenavides/others/dev/poc/vss-ol-cli/dist/index.js'

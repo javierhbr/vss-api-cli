@@ -265,6 +265,7 @@ Options:
                     pascalName: toPascalCase(name),
                     dashName,
                     camelName: name.charAt(0).toLowerCase() + name.slice(1),
+                    snakeName: dashName.replace(/-/g, '_'),
                     domainName,
                     adapterType
                 };

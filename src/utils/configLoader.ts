@@ -68,6 +68,82 @@ export interface CliConfig {
 }
 
 /**
+ * Map of file name case to recommended template variable
+ */
+const caseToVariableMap = {
+  'pascal': 'pascalName',
+  'camel': 'camelName',
+  'kebab': 'dashName',
+  'snake': 'snakeName'
+};
+
+/**
+ * Extracts template variables from a pattern string
+ * @param pattern Template pattern string with {{variable}} placeholders
+ * @returns Array of variable names found in the pattern
+ */
+function extractTemplateVars(pattern: string): string[] {
+  const regex = /\{\{([^}]+)\}\}/g;
+  const matches: string[] = [];
+  let match;
+  
+  while ((match = regex.exec(pattern)) !== null) {
+    if (match[1]) {
+      matches.push(match[1]);
+    }
+  }
+  
+  return matches;
+}
+
+/**
+ * Validates that file patterns are consistent with the chosen fileNameCase
+ * @param config The configuration object to validate
+ * @returns True if consistent, false if inconsistencies found
+ */
+function validateFileNameCaseConsistency(config: CliConfig): boolean {
+  if (!config.fileNameCase) {
+    return true; // Nothing to validate if not specified
+  }
+  
+  const recommendedVar = caseToVariableMap[config.fileNameCase];
+  let isConsistent = true;
+  let warnings = 0;
+  
+  // Check file patterns for appropriate case variable usage
+  Object.entries(config.filePatterns).forEach(([componentType, patterns]) => {
+    Object.entries(patterns).forEach(([fileType, pattern]) => {
+      const varsInPattern = extractTemplateVars(pattern);
+      const caseVars = varsInPattern.filter(v => 
+        ['name', 'pascalName', 'camelName', 'dashName', 'snakeName'].includes(v)
+      );
+      
+      if (caseVars.length > 0 && !caseVars.includes(recommendedVar)) {
+        console.warn(`⚠️  Warning: ${componentType}.${fileType}: "${pattern}" does not use {{${recommendedVar}}}, which is recommended for fileNameCase: "${config.fileNameCase}"`);
+        
+        // Show which case-specific variable is being used instead
+        caseVars.forEach(v => {
+          if (v !== recommendedVar && Object.values(caseToVariableMap).includes(v)) {
+            const usedCase = Object.entries(caseToVariableMap).find(([_, value]) => value === v)?.[0];
+            console.warn(`   - Using {{${v}}} which is for fileNameCase: "${usedCase}"`);
+          }
+        });
+        
+        warnings++;
+        isConsistent = false;
+      }
+    });
+  });
+  
+  if (warnings > 0) {
+    console.warn(`⚠️  ${warnings} inconsistencies found between fileNameCase "${config.fileNameCase}" and template variables.`);
+    console.warn(`   - Recommended template variable for fileNameCase "${config.fileNameCase}" is {{${recommendedVar}}}.`);
+  }
+  
+  return isConsistent;
+}
+
+/**
  * Load configuration from vss-api.config.json, with fallback to defaults
  * @param basePath Base path where to look for the config file
  * @param useAbsolutePath If true, basePath is treated as absolute, otherwise as relative to CWD
@@ -114,7 +190,12 @@ export function loadConfig(basePath: string = '.', useAbsolutePath: boolean = fa
   }
 
   // Deep merge default and user config
-  return deepMerge(defaultConfig, userConfig);
+  const finalConfig = deepMerge(defaultConfig, userConfig);
+
+  // Validate file name case consistency
+  validateFileNameCaseConsistency(finalConfig);
+
+  return finalConfig;
 }
 
 /**

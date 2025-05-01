@@ -561,6 +561,80 @@ check_file_exists "src/infra/repository/InheritanceAdapter.ts" "Adapter from ext
 
 cd "$ORIGINAL_PWD" # Back to TEST_ROOT for this run
 
+# --- Scenario 9: File Case Variable Validation ---
+print_header "Scenario 9: File Case Variable Validation"
+
+echo "⚙️ Testing config validation script..." | tee -a "$LOG_FILE_ABS"
+
+# Create a directory for testing the validation script
+VALIDATION_DIR="validation-test"
+mkdir -p "$VALIDATION_DIR"
+cd "$VALIDATION_DIR"
+
+# Create a config with inconsistent case variables
+cat << EOF > vss-api.config.json
+{
+  "basePath": "src",
+  "fileNameCase": "kebab",
+  "filePatterns": {
+    "handler": {
+      "handlerFile": "{{pascalName}}.handler.ts", 
+      "schemaFile": "{{dashName}}.schema.ts",
+      "dtoFile": "{{dashName}}.dto.ts"
+    },
+    "domain": {
+      "modelFile": "{{camelName}}.model.ts",
+      "portFile": "{{dashName}}Port.ts"
+    }
+  }
+}
+EOF
+
+echo "🔍 Running validation script..." | tee -a "$LOG_FILE_ABS"
+node ../../validate-file-cases-fixed.js vss-api.config.json 2>&1 | tee -a "$LOG_FILE_ABS"
+
+echo "🔍 Running validation script with --fix flag..." | tee -a "$LOG_FILE_ABS"
+node ../../validate-file-cases-fixed.js vss-api.config.json --fix 2>&1 | tee -a "$LOG_FILE_ABS"
+
+# Check that the config was fixed
+echo "🔍 Validating fixed config..." | tee -a "$LOG_FILE_ABS"
+# Parse the fixed JSON and check if handlerFile now uses dashName
+HANDLER_PATTERN=$(node -e "const fs=require('fs'); const config=JSON.parse(fs.readFileSync('vss-api.config.json')); console.log(config.filePatterns.handler.handlerFile);")
+DOMAIN_PATTERN=$(node -e "const fs=require('fs'); const config=JSON.parse(fs.readFileSync('vss-api.config.json')); console.log(config.filePatterns.domain.modelFile);")
+
+if [[ "$HANDLER_PATTERN" == *"{{dashName}}"* ]]; then
+  print_pass "Handler pattern correctly uses dashName (kebab case) after fix"
+else
+  print_fail "Handler pattern was not fixed correctly: $HANDLER_PATTERN"
+fi
+
+if [[ "$DOMAIN_PATTERN" == *"{{dashName}}"* ]]; then
+  print_pass "Domain model pattern correctly uses dashName (kebab case) after fix"
+else
+  print_fail "Domain model pattern was not fixed correctly: $DOMAIN_PATTERN"
+fi
+
+# Test with CLI command if it was built
+if [[ -f "../../dist/index.js" ]]; then
+  echo "🔍 Testing CLI validation command..." | tee -a "$LOG_FILE_ABS"
+  # Create a fresh config with inconsistencies
+  cat << EOF > vss-api-cli.config.json
+{
+  "basePath": "src",
+  "fileNameCase": "pascal",
+  "filePatterns": {
+    "handler": {
+      "handlerFile": "{{dashName}}.handler.ts", 
+      "schemaFile": "{{pascalName}}Schema.ts"
+    }
+  }
+}
+EOF
+  node ../../dist/index.js validate-config -p vss-api-cli.config.json 2>&1 | tee -a "$LOG_FILE_ABS"
+fi
+
+cd "$ORIGINAL_PWD" # Back to TEST_ROOT for this run
+
 # --- Final Message ---
 print_header "Configuration Scenario Tests Finished"
 echo "Test artifacts generated in: ${TEST_ROOT_ABS}" | tee -a "$LOG_FILE_ABS"

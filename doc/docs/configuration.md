@@ -6,8 +6,16 @@ sidebar_position: 6
 
 This guide explains how to customize the behavior of `vss-api-cli` using the `vss-api.config.json` file.
 
-- **Step 1:** Create a `vss-api.config.json` file in your project root:
+## Configuration Overview
 
+The `vss-api-cli` can be configured with the following main options:
+
+- **basePath**: The root directory for generated files (default: "src")
+- **filePatterns**: Customizes the naming patterns for generated files
+- **directories**: Customizes where generated files are placed
+- **fileNameCase**: Controls the case style of file names (see [File Naming Case](./file-naming-case.md) for details)
+
+To ensure your configuration is valid and follows best practices, see [Configuration Validation](./configuration-validation.md).
 
 ## Configuration options
 

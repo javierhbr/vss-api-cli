@@ -53,6 +53,7 @@ function generateFilePreview(options: {
     pascalName,
     dashName,
     camelName: domainName,
+    snakeName: dashName.replace(/-/g, '_'),
     domainName,
     adapterType,
     serviceName: finalServiceName
@@ -289,6 +290,7 @@ export function createDomainCommand(): Command {
                     pascalName,
                     dashName,
                     camelName: domainName,
+                    snakeName: dashName.replace(/-/g, '_'),
                     domainName,
                     adapterType: answers.adapterType || 'repository',
                     serviceName: finalServiceName
