@@ -10,7 +10,7 @@ export class <%= serviceName %> {
   // Example service method
   // public async performAction(data: <%= modelName %>): Promise<ResultType> {
   //   // Use injected ports and models
-  //   // await this.<%= portName %>.somePortMethod(data.id);
+  //   // await this.<%= camelCasedPortName %>.somePortMethod(data.id);
   //   return /* result */;
   // }
 }

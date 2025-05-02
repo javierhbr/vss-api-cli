@@ -1,7 +1,9 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
-import { toCamelCase, toPascalCase, capitalizeFirstLetter, displayWithPagination } from '../utils/fileUtils';
+import { toCamelCase, toPascalCase, toDasherize, capitalizeFirstLetter, displayWithPagination, applyFilePatterns } from '../utils/fileUtils';
 import { runSchematic } from '../schematics-cli';
+import { loadConfig } from '../utils/configLoader';
+import * as path from 'path';
 
 /**
  * Generate a preview tree of files that will be created
@@ -9,71 +11,118 @@ import { runSchematic } from '../schematics-cli';
  * @returns A formatted string representing the file tree
  */
 function generateFilePreview(options: {
-  name: string,
-  path?: string,
-  model?: boolean,
-  service?: boolean,
-  port?: boolean,
-  modelName?: string,
-  serviceName?: string,
-  portName?: string,
-  adapterType?: string,
-  adapterName?: string; // Add adapterName parameter
+  name: string;
+  path?: string;
+  model?: boolean;
+  service?: boolean;
+  port?: boolean;
+  modelName?: string;
+  serviceName?: string;
+  portName?: string;
+  adapterType?: string;
+  adapterName?: string;
 }): string {
-  const { 
-    name, 
-    path: outputPath = '', 
-    model = true, 
-    service = true, 
-    port = true, 
+  const {
+    name,
+    path: out = '',
+    model = true,
+    service = true,
+    port = true,
     modelName,
     serviceName,
     portName,
     adapterType = 'repository',
-    adapterName // Destructure adapterName
+    adapterName,
   } = options;
   
+  // Setup domain name and config
   const domainName = toCamelCase(name);
-  const pascalName = toPascalCase(domainName);
-  const basePath = outputPath ? `${outputPath}/` : '';
+  const pascalName = toPascalCase(name);
+  const dashName = toDasherize(name);
+  const config = loadConfig(out);
   
-  // Use custom names if provided, otherwise derive from domain name
-  const finalModelName = modelName ? toPascalCase(modelName) : pascalName;
-  const finalServiceName = serviceName ? toPascalCase(serviceName) : `${pascalName}Service`;
-  const finalPortName = portName ? toPascalCase(portName) : `${pascalName}${capitalizeFirstLetter(adapterType)}Port`;
-  // Use custom adapter name if provided, otherwise derive it
-  const finalAdapterName = adapterName ? toPascalCase(adapterName) : `${pascalName}${capitalizeFirstLetter(adapterType)}Adapter`; 
+  // Final names based on provided custom names or defaults
+  const finalModelName = modelName || pascalName;
+  const finalServiceName = serviceName || `${pascalName}Service`;
+  const finalPortName = portName || `${pascalName}${capitalizeFirstLetter(adapterType)}Port`;
+  const finalAdapterName = adapterName || `${pascalName}${capitalizeFirstLetter(adapterType)}Adapter`;
   
-  let preview = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
-  preview += `\x1b[36m${basePath}src/\x1b[0m\n`;
+  // Template variables for file pattern processing
+  const templateVars = {
+    name,
+    pascalName,
+    dashName,
+    camelName: domainName,
+    snakeName: dashName.replace(/-/g, '_'),
+    domainName,
+    adapterType,
+    serviceName: finalServiceName
+  };
   
+  // Apply file patterns from config using our new utility
+  const modelFileInfo = model ? applyFilePatterns('domain', 'modelFile', config, {...templateVars, name: finalModelName}, out) : null;
+  const serviceFileInfo = service ? applyFilePatterns('domain', 'serviceFile', config, {...templateVars, name: finalServiceName}, out) : null;
+  const portFileInfo = port ? applyFilePatterns('domain', 'portFile', config, {...templateVars, name: finalPortName}, out) : null;
+  const adapterFileInfo = (port && adapterType !== 'none') ? 
+    applyFilePatterns('adapter', 'adapterFile', config, {...templateVars, name: finalAdapterName}, out) : null;
+  
+  // Extract paths for display
+  const srcPath = path.join(out || '.', config.basePath);
+  
+  // Start building preview output
+  let pv = `\n\x1b[1mFiles to be created:\x1b[0m\n`;
+  
+  // Show domain files
   if (model || service || port) {
-    preview += `\x1b[36m├── ${domainName}/\x1b[0m\n`;
+    // Extract domain directory structure
+    const domainDirPath = path.dirname(model ? modelFileInfo!.filePath : service ? serviceFileInfo!.filePath : portFileInfo!.filePath)
+      .replace(srcPath + '/', '')
+      .split('/')[0]; // Get top level domain directory
+      
+    pv += `\x1b[36m${srcPath}/\x1b[0m\n`;
+    pv += `\x1b[36m├── ${domainDirPath}/\x1b[0m\n`;
     
-    if (model) {
-      preview += `\x1b[36m│   ├── models/\x1b[0m\n`;
-      preview += `\x1b[32m│   │   └── ${finalModelName}.ts\x1b[0m \x1b[90m- Domain model\x1b[0m\n`;
+    // Show model file
+    if (model && modelFileInfo) {
+      const modelDir = path.dirname(modelFileInfo.filePath).replace(srcPath + '/', '').split('/');
+      modelDir.shift(); // Remove domain name
+      pv += `\x1b[36m│   ├── ${modelDir.join('/')}/\x1b[0m\n`;
+      pv += `\x1b[32m│   │   └── ${modelFileInfo.fileName}\x1b[0m \x1b[90m- Domain model\x1b[0m\n`;
     }
     
-    if (port) {
-      preview += `\x1b[36m│   ├── ports/\x1b[0m\n`;
-      preview += `\x1b[32m│   │   └── ${finalPortName}.ts\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
+    // Show port file
+    if (port && portFileInfo) {
+      const portDir = path.dirname(portFileInfo.filePath).replace(srcPath + '/', '').split('/');
+      portDir.shift(); // Remove domain name
+      pv += `\x1b[36m│   ├── ${portDir.join('/')}/\x1b[0m\n`;
+      pv += `\x1b[32m│   │   └── ${portFileInfo.fileName}\x1b[0m \x1b[90m- Port interface\x1b[0m\n`;
     }
     
-    if (service) {
-      preview += `\x1b[36m│   └── services/\x1b[0m\n`;
-      preview += `\x1b[32m│       └── ${finalServiceName}.ts\x1b[0m \x1b[90m- Domain service implementation\x1b[0m\n`;
+    // Show service file
+    if (service && serviceFileInfo) {
+      const serviceDir = path.dirname(serviceFileInfo.filePath).replace(srcPath + '/', '').split('/');
+      serviceDir.shift(); // Remove domain name
+      pv += `\x1b[36m│   └── ${serviceDir.join('/')}/\x1b[0m\n`;
+      pv += `\x1b[32m│       └── ${serviceFileInfo.fileName}\x1b[0m \x1b[90m- Domain service implementation\x1b[0m\n`;
     }
   }
   
-  if (port && adapterType !== 'none') {
-    preview += `\x1b[36m└── infra/\x1b[0m\n`;
-    preview += `\x1b[36m    └── ${adapterType}/\x1b[0m\n`;
-    // Use finalAdapterName in the preview
-    preview += `\x1b[32m        └── ${finalAdapterName}.ts\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`; 
+  // Show adapter implementation
+  if (port && adapterType !== 'none' && adapterFileInfo) {
+    const adapterDirParts = path.dirname(adapterFileInfo.filePath).replace(srcPath + '/', '').split('/');
+    
+    pv += `\x1b[36m└── ${adapterDirParts[0]}/\x1b[0m\n`;
+    if (adapterDirParts.length > 1) {
+      pv += `\x1b[36m    └── ${adapterDirParts[1]}/\x1b[0m\n`;
+      if (adapterDirParts.length > 2) {
+        const remainingDirs = adapterDirParts.slice(2).join('/');
+        pv += `\x1b[36m        └── ${remainingDirs}/\x1b[0m\n`;
+      }
+    }
+    pv += `\x1b[32m        └── ${adapterFileInfo.fileName}\x1b[0m \x1b[90m- Adapter implementation\x1b[0m\n`;
   }
   
-  return preview;
+  return pv;
 }
 
 export function createDomainCommand(): Command {
@@ -81,79 +130,29 @@ export function createDomainCommand(): Command {
         .alias('cd')
         .description(`Scaffold a new domain with models, services, and ports.`)
         .argument('<domainName>', 'Name of the domain (e.g., user, product)')
+        // Add both positive and negative boolean flags for model, service, and port
+        .option('--model', 'Include domain model generation')
+        .option('--no-model', 'Skip domain model generation')
+        .option('--service', 'Include domain service generation')
+        .option('--no-service', 'Skip domain service generation')
+        .option('--port', 'Include port interface generation')
+        .option('--no-port', 'Skip port interface generation')
         .option('-p, --path <outputPath>', 'Specify a custom output path for the domain')
         .option('-y, --yes', 'Skip prompts and use default options')
-        .option('--no-model', 'Skip domain model generation')
-        .option('--no-service', 'Skip domain service generation')
-        .option('--no-port', 'Skip port interface generation')
         .option('--adapter-type <type>', 'Type of adapter to implement the port (repository, rest, graphql, none)', 'repository')
         .option('--model-name <name>', 'Custom name for the model')
         .option('--service-name <name>', 'Custom name for the service')
         .option('--port-name <name>', 'Custom name for the port interface')
-        .option('--adapter-name <name>', 'Custom name for the adapter implementation') // Add adapter name option
-        .option('--force', 'Force overwrite of existing files') // Add force option
-        .hook('preAction', async () => {
-            // Show detailed help with pagination when --help is used
-            if (process.argv.includes('--help')) {
-                const helpContent = `
-Description:
-  Creates a complete domain structure following hexagonal architecture principles.
-  This includes the domain model, services for business logic, and ports with adapters
-  for infrastructure integration.
-
-Structure Generated:
-  \`\`\`
-  src/
-  ├── {domainName}/              # Domain root folder
-  │   ├── models/                # Domain models and entities
-  │   ├── ports/                # Port interfaces for external dependencies
-  │   └── services/             # Domain services implementing business logic
-  └── infra/                    # Infrastructure implementations
-      └── {adapterType}/        # Concrete adapter implementations
-  \`\`\`
-
-Examples:
-  $ vss-api-cli create:domain user
-  $ vss-api-cli create:domain payment --path src/domains
-  $ vss-api-cli create:domain product --adapter-type rest
-  $ vss-api-cli create:domain order --no-model --no-port
-  $ vss-api-cli create:domain customer --model-name Client --service-name CustomerManagement
-
-Additional Information:
-  • Domain names are automatically converted to proper case in generated files
-  • Models use PascalCase (e.g., User)
-  • Services are suffixed with 'Service' (e.g., UserService)
-  • Ports are named based on adapter type (e.g., UserRepositoryPort)
-  • Generated code follows clean architecture principles
-  • All files include TypeScript types and documentation
-  • You can customize component names via flags or interactive prompts
-
-Options:
-  -p, --path <outputPath>     Specify a custom output path for the domain
-  -y, --yes                   Skip prompts and use default options
-  --no-model                  Skip domain model generation
-  --no-service               Skip domain service generation
-  --no-port                  Skip port interface generation
-  --adapter-type <type>      Type of adapter (repository, rest, graphql, none)
-  --model-name <name>        Custom name for the model
-  --service-name <name>      Custom name for the service
-  --port-name <name>         Custom name for the port interface
-  --adapter-name <name>      Custom name for the adapter implementation
-  -h, --help                 Display this help message
-`;
-                await displayWithPagination(helpContent);
-                process.exit(0);
-            }
-        })
-        .action(async (domainName, cmdOptions) => {
+        .option('--adapter-name <name>', 'Custom name for the adapter implementation')
+        .action(async (inputDomainName, cmdOptions) => {
             try { // Add top-level try block for the action
-                const camelName = toCamelCase(domainName);
-                const pascalName = toPascalCase(camelName);
+                const camelName = toCamelCase(inputDomainName);
+                const initialPascalName = toPascalCase(camelName);
                 
                 let answers;
                 
                 // Confirm domain name first, unless --yes flag is explicitly set
-                let finalDomainName = domainName;
+                let finalDomainName = inputDomainName;
                 
                 // Ensure cmdOptions.yes is explicitly set to true, not just truthy
                 const skipPrompts = cmdOptions.yes === true;
@@ -163,7 +162,7 @@ Options:
                         {
                             type: 'confirm',
                             name: 'confirmName',
-                            message: `Domain will be created with name: "${domainName}" (${pascalName})${cmdOptions.path ? ` in path: "${cmdOptions.path}"` : ''}. Is this correct?`,
+                            message: `Domain will be created with name: "${finalDomainName}" (${initialPascalName})${cmdOptions.path ? ` in path: "${cmdOptions.path}"` : ''}. Is this correct?`,
                             default: true,
                         },
                         {
@@ -237,7 +236,7 @@ Options:
                         {
                             type: 'confirm',
                             name: 'createPort',
-                            message: (ans) => `Create a port interface (${toPascalCase(toCamelCase(ans.serviceName || finalDomainName))}RepositoryPort)?`, // Use serviceName if provided
+                            message: 'Create a port interface?',
                             default: true,
                         },
                         {
@@ -271,6 +270,43 @@ Options:
                 if (cmdOptions.portName) answers.portName = cmdOptions.portName;
                 if (cmdOptions.adapterName) answers.adapterName = cmdOptions.adapterName; // Apply adapterName from options
 
+                // Load configuration
+                const config = loadConfig(cmdOptions.path || '');
+                
+                // Generate template variables
+                const domainName = toCamelCase(finalDomainName);
+                const pascalName = toPascalCase(finalDomainName);
+                const dashName = toDasherize(finalDomainName);
+                
+                // Final names based on provided custom names or defaults
+                const finalModelName = answers.modelName || pascalName;
+                const finalServiceName = answers.serviceName || `${pascalName}Service`;
+                const finalPortName = answers.portName || `${pascalName}${capitalizeFirstLetter(answers.adapterType || 'repository')}Port`;
+                const finalAdapterName = answers.adapterName || `${pascalName}${capitalizeFirstLetter(answers.adapterType || 'repository')}Adapter`;
+                
+                // Template variables for file paths
+                const templateVars = {
+                    name: finalDomainName,
+                    pascalName,
+                    dashName,
+                    camelName: domainName,
+                    snakeName: dashName.replace(/-/g, '_'),
+                    domainName,
+                    adapterType: answers.adapterType || 'repository',
+                    serviceName: finalServiceName
+                };
+                
+                // Generate paths using the file patterns
+                const basePath = cmdOptions.path || '';
+                const modelFileInfo = answers.createModel ? 
+                    applyFilePatterns('domain', 'modelFile', config, {...templateVars, name: finalModelName}, basePath) : null;
+                const serviceFileInfo = answers.createService ? 
+                    applyFilePatterns('domain', 'serviceFile', config, {...templateVars, name: finalServiceName}, basePath) : null;
+                const portFileInfo = answers.createPort ? 
+                    applyFilePatterns('domain', 'portFile', config, {...templateVars, name: finalPortName}, basePath) : null;
+                const adapterFileInfo = (answers.createPort && answers.adapterType !== 'none') ? 
+                    applyFilePatterns('adapter', 'adapterFile', config, {...templateVars, name: finalAdapterName}, basePath) : null;
+                
                 // Generate options for the schematic
                 const schematicOptions = {
                     name: finalDomainName,
@@ -282,12 +318,23 @@ Options:
                     modelName: answers.modelName || '',
                     serviceName: answers.serviceName || '',
                     portName: answers.portName || '',
-                    adapterName: answers.adapterName || '' // Pass adapterName to schematic options
+                    adapterName: answers.adapterName || '', // Pass adapterName to schematic options
+                    
+                    // Pass file paths to schematic
+                    _config: config,
+                    modelFilePath: modelFileInfo?.filePath,
+                    modelFileName: modelFileInfo?.fileName,
+                    serviceFilePath: serviceFileInfo?.filePath,
+                    serviceFileName: serviceFileInfo?.fileName,
+                    portFilePath: portFileInfo?.filePath,
+                    portFileName: portFileInfo?.fileName,
+                    adapterFilePath: adapterFileInfo?.filePath,
+                    adapterFileName: adapterFileInfo?.fileName
                 };
 
                 // Generate and show file preview
                 const filePreview = generateFilePreview(schematicOptions);
-                await displayWithPagination(filePreview);
+                await displayWithPagination(`\n🔹 Create a Domain: ${finalDomainName}\n${filePreview}`);
 
                 // Ask for confirmation unless --yes flag is used
                 let proceed = skipPrompts;
@@ -307,9 +354,8 @@ Options:
                 if (proceed) {
                     try {
                         console.log(`\nGenerating domain ${finalDomainName}...`);
-                        // Pass cmdOptions.force to runSchematic
                         await runSchematic('domain', schematicOptions, cmdOptions.dryRun, cmdOptions.force); 
-                        console.log('\x1b[32m✓\x1b[0m ⏱️ Domain created. We just saved you 37 clicks and 2 existential crises!');
+                        console.log('\x1b[32m✅ Domain created successfully! 🎯\x1b[0m');
                     } catch (error) {
                         console.error('\x1b[31m✗\x1b[0m We tried. The domain said “nah.”:', error);
                     }

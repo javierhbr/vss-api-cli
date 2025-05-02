@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AdapterSchematic",
+  "title": "Adapter Schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the adapter",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      }
+    },
+    "path": {
+      "type": "string",
+      "format": "path",
+      "description": "The path at which to create the adapter",
+      "visible": false
+    },
+    "domain": {
+      "type": "string",
+      "description": "The domain name this adapter belongs to"
+    },
+    "port": {
+      "type": "string",
+      "description": "The name of the port this adapter implements"
+    },
+    "adapterType": {
+      "type": "string",
+      "description": "Type of adapter: repository, rest, graphql, queue, storage",
+      "default": "repository",
+      "enum": ["repository", "rest", "graphql", "queue", "storage"]
+    }
+  },
+  "required": ["name", "domain", "port", "adapterType"]
+}

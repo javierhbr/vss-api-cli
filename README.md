@@ -223,6 +223,18 @@ When creating a port or service, the CLI will automatically detect existing doma
 vss-api-cli create:service UserUpdater
 ```
 
+### On-the-fly Domain Creation
+
+When creating a port, if you need a new domain that doesn't exist yet, you can select the "+ Create new domain..." option when prompted for which domain the port belongs to. This will start the domain creation workflow without requiring you to run a separate command.
+
+```bash
+# When asked "Which domain does this port belong to?"
+# You can select "+ Create new domain..." from the list
+vss-api-cli create:port UserRepository
+```
+
+This streamlines the workflow by allowing you to create a new domain and immediately add a port to it in a single command.
+
 ## Generated Project Structure
 
 The CLI generates files following this structure:
@@ -354,12 +366,103 @@ Each command includes a detailed help system. Use `--help` with any command to s
 vss-api-cli create:service --help
 ```
 
-The help system provides detailed information on command options, structure of generated files, and example usage.
 
-## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## Configuration File
 
-## License
+The CLI can be configured using a `vss-api.config.json` file in your project root. This allows you to customize file patterns, directory structures, and naming conventions.
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+```json
+{
+  "basePath": "src",
+  "fileNameCase": "pascal",
+  "filePatterns": {
+    "handler": {
+      "handlerFile": "{{pascalName}}.handler.ts",
+      "schemaFile": "{{pascalName}}Schema.ts",
+      "dtoFile": "{{dashName}}.dto.ts"
+    },
+    "domain": {
+      "modelFile": "{{pascalName}}.ts",
+      "serviceFile": "{{pascalName}}Service.ts",
+      "portFile": "{{pascalName}}{{adapterType}}Port.ts",
+      "adapterFile": "{{pascalName}}{{adapterType}}Adapter.ts"
+    },
+    "service": {
+      "serviceFile": "{{pascalName}}Service.ts"
+    },
+    "port": {
+      "portFile": "{{pascalName}}Port.ts",
+      "adapterFile": "{{pascalName}}Adapter.ts"
+    }
+  },
+  "directories": {
+    "handler": {
+      "base": "functions", 
+      "schema": "functions/schemas"
+    },
+    "domain": {
+      "base": "{{domainName}}",
+      "model": "{{domainName}}/models",
+      "service": "{{domainName}}/services",
+      "port": "{{domainName}}/ports"
+    },
+    "adapter": {
+      "base": "infrastructure/{{adapterType}}"
+    },
+    "service": {
+      "base": "{{domainName}}/services"
+    },
+    "port": {
+      "base": "{{domainName}}/ports"
+    }
+  }
+}
+```
+
+### File Naming Case Consistency
+
+The `fileNameCase` setting determines how generated files will be named. Valid values are:
+- `pascal` (PascalCase) - Example: `UserService.ts`
+- `camel` (camelCase) - Example: `userService.ts`
+- `kebab` (kebab-case) - Example: `user-service.ts`
+- `snake` (snake_case) - Example: `user_service.ts`
+
+This setting should be consistent with the template variables used in `filePatterns`. Available template variables:
+
+- `{{name}}` - Raw name as provided
+- `{{pascalName}}` - PascalCase version
+- `{{camelName}}` - camelCase version
+- `{{dashName}}` - kebab-case version
+- `{{snakeName}}` - snake_case version
+
+### Configuration Validation
+
+The CLI provides tools to validate your configuration files for consistency:
+
+```bash
+# Validate all config files in your project
+vss-api-cli validate-config
+
+# Validate a specific config file
+vss-api-cli validate-config -p path/to/vss-api.config.json
+
+# Automatically fix inconsistencies (creates backups)
+vss-api-cli validate-config --fix
+
+# Standalone validation script
+npx vss-validate-config
+```
+
+You can also run the validation script directly:
+
+```bash
+node validate-file-cases-fixed.js [path] [--fix]
+```
+
+alias vss-api-cli= '/Users/javierbenavides/others/dev/poc/vss-ol-cli/dist/index.js'
+
+
+
+
+for DTO zod schemas, offer to create Request and Response DTO's

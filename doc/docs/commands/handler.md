@@ -2,40 +2,48 @@
 sidebar_position: 1
 ---
 
-# Handler Generator (`create:handler` or `ch`)
+# How to Create a Handler
 
-Creates a new API handler with optional schema validation.
+This guide explains how to use the `vss-api-cli` to generate a new API handler with optional schema validation.
 
-```bash
-vss-api-cli create:handler <name> [options]
-# or
-vss-api-cli ch <name> [options]
-```
+## Steps
 
-**Options:**
-- `-p, --path <outputPath>` - Specify a custom output path for the handler
-- `-s, --schema` - Generate schema validation files
-- `--no-validation` - Skip schema validation setup
+1. **Run the Command**  
+   Use the following command to create a handler:
+   ```bash
+   vss-api-cli create:handler <name> [options]
+   # or
+   vss-api-cli ch <name> [options]
+   ```
 
-**Examples:**
-```bash
-# Basic handler creation
-vss-api-cli create:handler createUser
+2. **Options**  
+   Customize the handler generation using these options:
+   - `-p, --path <outputPath>`: Specify a custom output path for the handler.
+   - `-s, --schema`: Generate schema validation files.
+   - `--no-validation`: Skip schema validation setup.
 
-# Handler with schema validation
-vss-api-cli create:handler createUser --schema
+3. **Examples**  
+   To create a handler named `createUser` with schema validation:
+   ```bash
+   vss-api-cli create:handler createUser --schema
+   ```
 
-# Handler in custom path with schema
-vss-api-cli create:handler createUser -p src/functions -s
+   To create a handler in a custom path with schema:
+   ```bash
+   vss-api-cli create:handler createUser -p src/functions -s
+   ```
 
-# Non-interactive creation
-vss-api-cli create:handler createUser -y
+   To create a handler without validation:
+   ```bash
+   vss-api-cli create:handler createUser --no-validation
+   ```
 
-# Handler without validation
-vss-api-cli create:handler createUser --no-validation
-```
-
-## Generated Files
-
-- **Handler File**: Contains the main API handler function, with proper error handling and response formatting.
-- **Schema File**: Contains Zod validation schema for request validation (when using `--schema` option).
+4. **Generated Structure**  
+   The command generates the following structure:
+   ```
+   src/
+   ├── functions/
+   │   ├── create-user.function.ts
+   │   ├── schemas/
+   │   │   └── create-user.schema.ts
+   ```

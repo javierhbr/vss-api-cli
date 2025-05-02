@@ -1,0 +1,17 @@
+import { <%= portName %> } from '../../<%= domain %>/ports/<%= portName %>';
+
+export class <%= classify(name) %><%= classify(adapterType) %>Adapter implements <%= portName %> {
+  constructor() {}
+
+  // Implement all methods required by the <%= portName %> interface
+  // Example implementation methods:
+  /*
+  async findById(id: string): Promise<any> {
+    // Implementation details...
+  }
+  
+  async save(entity: any): Promise<any> {
+    // Implementation details...
+  }
+  */
+}

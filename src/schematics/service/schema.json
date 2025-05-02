@@ -31,7 +31,6 @@
     },
     "path": {
       "type": "string",
-      "format": "path",
       "description": "The path to create the service files",
       "visible": false
     },

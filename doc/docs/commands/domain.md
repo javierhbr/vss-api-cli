@@ -2,51 +2,77 @@
 sidebar_position: 2
 ---
 
-# Domain Generator (`create:domain` or `cd`)
+# How to Create a Domain
 
-Creates a new domain with models, services, and ports.
+This guide explains how to use the `vss-api-cli` to generate a new domain with models, services, and ports, following clean architecture principles.
 
-```bash
-vss-api-cli create:domain <domainName> [options]
-# or
-vss-api-cli cd <domainName> [options]
-```
+## Steps
 
-**Options:**
-- `-p, --path <outputPath>` - Specify a custom output path (default: `src/<domainName>`)
-- `-y, --yes` - Skip prompts and use default options
-- `--no-model` - Skip model generation
-- `--no-service` - Skip service generation
-- `--no-port` - Skip port generation
-- `--adapter-type <type>` - Type of adapter (repository, rest, graphql, none)
+1. **Run the Command**  
+   Use the following command to create a domain:  
+   ```bash
+   vss-api-cli create:domain <domainName> [options]
+   # or
+   vss-api-cli cd <domainName> [options]
+   ```
 
-**Examples:**
-```bash
-# Basic domain creation (interactive)
-vss-api-cli create:domain user
+2. **Options**  
+   Customize the domain generation using these options:  
+   - `-p, --path <outputPath>`: Specify a custom output path (default: `src/<domainName>`).
+   - `-y, --yes`: Skip prompts and use default options.
+   - `--no-model`: Skip model generation.
+   - `--no-service`: Skip service generation.
+   - `--no-port`: Skip port generation.
+   - `--adapter-type <type>`: Specify the adapter type (e.g., `repository`, `rest`, `graphql`, or `none`).
 
-# Domain with custom path
-vss-api-cli create:domain payment --path src/domains
+3. **Examples**  
+   To create a domain named `user` with default settings:  
+   ```bash
+   vss-api-cli create:domain user
+   ```
 
-# Domain with REST adapter
-vss-api-cli create:domain product --adapter-type rest
+   To create a domain with a custom path:  
+   ```bash
+   vss-api-cli create:domain payment --path src/domains
+   ```
 
-# Domain without model
-vss-api-cli create:domain order --no-model
+   To create a domain with a REST adapter:  
+   ```bash
+   vss-api-cli create:domain product --adapter-type rest
+   ```
 
-# Domain with specific components
-vss-api-cli create:domain catalog --no-port --no-service
+   To create a domain without model:  
+   ```bash
+   vss-api-cli create:domain order --no-model
+   ```
 
-# Non-interactive with defaults
-vss-api-cli create:domain user -y
+   To create a domain with specific components:  
+   ```bash
+   vss-api-cli create:domain catalog --no-port --no-service
+   ```
 
-# Complete custom setup
-vss-api-cli create:domain payment --adapter-type graphql --path custom/path --no-model
-```
+   For a non-interactive setup with defaults:  
+   ```bash
+   vss-api-cli create:domain user -y
+   ```
 
-## Generated Files
+   For a complete custom setup:  
+   ```bash
+   vss-api-cli create:domain payment --adapter-type graphql --path custom/path --no-model
+   ```
 
-- **Model**: Core business entities with properties and methods.
-- **Port**: Interface that defines required operations for infrastructure adapters.
-- **Service**: Business logic implementation using the domain model and ports.
-- **Adapter**: Implementation of port interfaces for different infrastructure concerns (created within `infra/` based on `--adapter-type`).
+4. **Generated Structure**  
+   The command generates the following structure:  
+   ```
+   src/
+   ├── user/
+   │   ├── models/
+   │   │   └── User.ts
+   │   ├── ports/
+   │   │   └── UserRepositoryPort.ts
+   │   └── services/
+   │       └── UserService.ts
+   └── infra/
+       └── repository/
+           └── UserRepositoryAdapter.ts
+   ```

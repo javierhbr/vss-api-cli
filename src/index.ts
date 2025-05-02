@@ -6,6 +6,8 @@ import { createDomainCommand } from './commands/createDomain';
 import { createHandlerCommand } from './commands/createHandler';
 import { createPortCommand } from './commands/createPort';
 import { createServiceCommand } from './commands/createService';
+import { createAdapterCommand } from './commands/createAdapter';
+import { createValidateConfigCommand } from './commands/validateConfig';
 import { displayWithPagination } from './utils/fileUtils';
 
 /**
@@ -21,13 +23,12 @@ function displayWelcomeMessage(action: string, description?: string): void {
   __     __   ______    ______          ______   _______   ______         ______   __        ______ 
   /  |   /  | /      \  /      \        /      \ /       \ /      |       /      \ /  |      /      |
   $$ |   $$ |/$$$$$$  |/$$$$$$  |      /$$$$$$  |$$$$$$$  |$$$$$$/       /$$$$$$  |$$ |      $$$$$$/ 
-  $$ |   $$ |$$ \__$$/ $$ \__$$/       $$ |__$$ |$$ |__$$ |  $$ |        $$ |  $$/ $$ |        $$ |  
-  $$  \ /$$/ $$      \ $$      \       $$    $$ |$$    $$/   $$ |        $$ |      $$ |        $$ |  
+  $$ |   $$ |$$ \__$$/ $$ \__$$/         $$ |__$$ |$$ |__$$ |  $$ |        $$ |  $$/ $$ |        $$ |  
+  $$  \ /$$/ $$      \ $$      \          $$    $$ |$$    $$/   $$ |        $$ |      $$ |        $$ |  
    $$  /$$/   $$$$$$  | $$$$$$  |      $$$$$$$$ |$$$$$$$/    $$ |        $$ |   __ $$ |        $$ |  
-    $$ $$/   /  \__$$ |/  \__$$ |      $$ |  $$ |$$ |       _$$ |_       $$ \__/  |$$ |_____  _$$ |_ 
+    $$ $$/   /  \__$$ |/  \__$$ |        $$ |  $$ |$$ |       _$$ |_       $$ \__/  |$$ |_____  _$$ |_ 
      $$$/    $$    $$/ $$    $$/       $$ |  $$ |$$ |      / $$   |      $$    $$/ $$       |/ $$   |
       $/      $$$$$$/   $$$$$$/        $$/   $$/ $$/       $$$$$$/        $$$$$$/  $$$$$$$$/ $$$$$$/ 
-                                                                                                     
                                                                                                      
                                                                                                      
   `;
@@ -65,6 +66,10 @@ function getWelcomeMessage(commandName: string): { action: string, description: 
       action: 'Creating a new port interface and adapter implementation',
       description: 'This will generate the port interface in the domain layer and its adapter in the infrastructure layer'
     },
+    'create:adapter': {
+      action: 'Creating a new adapter implementation for an existing port',
+      description: 'This will generate an adapter that implements a port interface from a specific domain'
+    },
     'create:service': {
       action: 'Creating a new domain service',
       description: 'This will generate a service class in the domain layer'
@@ -98,11 +103,13 @@ function getWelcomeMessage(commandName: string): { action: string, description: 
  */
 function displayHelpSuggestion(): void {
   console.log("\x1b[33mℹ️  Need help? Run one of these commands:\x1b[0m");
-  console.log("  \x1b[36mvss-api-cli --help\x1b[0m             Show general CLI help");
+  console.log("  \x1b[36mvss-api-cli --help\x1b[0m                 Show general CLI help");
   console.log("  \x1b[36mvss-api-cli create:domain --help\x1b[0m    Show domain generator help");
   console.log("  \x1b[36mvss-api-cli create:handler --help\x1b[0m   Show handler generator help");
   console.log("  \x1b[36mvss-api-cli create:port --help\x1b[0m      Show port generator help");
+  console.log("  \x1b[36mvss-api-cli create:adapter --help\x1b[0m   Show adapter generator help");
   console.log("  \x1b[36mvss-api-cli create:service --help\x1b[0m   Show service generator help");
+  console.log("  \x1b[36mvss-api-cli validate-config --help\x1b[0m  Show config validation help");
   console.log();
 }
 
@@ -199,29 +206,34 @@ Options:
   \x1b[33m•\x1b[0m \x1b[1mservice\x1b[0m  - Domain service class
     
 \x1b[36m💡 Examples:\x1b[0m
-  \x1b[90m$\x1b[0m vss-api-cli g handler createUser
-  \x1b[90m$\x1b[0m vss-api-cli g domain payment --path src/domains
-  \x1b[90m$\x1b[0m vss-api-cli g port UserRepository --domain user`)
+  \x1b[90m$\x1b[0m vss-api-cli create:handler createUser
+  \x1b[90m$\x1b[0m vss-api-cli create:domain payment --path src/domains
+  \x1b[90m$\x1b[0m vss-api-cli create:port UserRepository --domain user`)
     .option('--dry-run', 'Run through without making any changes')
     .option('--output-dir <path>', 'Specify output directory for generated code')
     .option('--force', 'Override existing files')
     .allowUnknownOption()
-    .action(async (schematic: string, name: string | undefined, cmdOptions: { dryRun?: boolean, outputDir?: string }) => {
+    .action(async (schematic: string, name: string | undefined, cmdOptions: { dryRun?: boolean, outputDir?: string, force?: boolean }) => {
       const cli = new SchematicsCli();
-      const schematicArgs = process.argv.slice(process.argv.indexOf(name || schematic) + 1)
-        .filter(arg => arg !== '--dry-run')
-        .filter(arg => arg !== '--output-dir' && !process.argv[process.argv.indexOf(arg) - 1]?.includes('--output-dir'));
+      // Pass the schematic name, the command options object (which includes name, path, etc.), dryRun, and force flags
+      const allOptions = {
+        name: name,
+        ...cmdOptions, // Includes dryRun, outputDir, force from commander
+        // Capture any unknown options passed after schematic and name
+        options: process.argv.slice(process.argv.indexOf(name || schematic) + (name ? 1 : 0) + 1)
+      };
 
       try {
-        await cli.run({ 
+        // Call run with separate arguments
+        await cli.run(
           schematic, 
-          name, 
-          options: schematicArgs,
-          dryRun: cmdOptions.dryRun,
-          outputDir: cmdOptions.outputDir
-        });
+          allOptions, // Pass the combined options object
+          !!cmdOptions.dryRun, // Pass dryRun flag
+          !!cmdOptions.force // Pass force flag
+        );
       } catch (error) {
-        console.error('Error running schematic:', error);
+        // Error logging is handled within cli.run
+        // console.error('Error running schematic:', error);
         process.exit(1);
       }
     });
@@ -231,6 +243,8 @@ Options:
   program.addCommand(createHandlerCommand());
   program.addCommand(createPortCommand());
   program.addCommand(createServiceCommand());
+  program.addCommand(createAdapterCommand());
+  createValidateConfigCommand(program);
 
   // Handle unknown commands - show help suggestion after welcome banner
   program.on('command:*', () => {

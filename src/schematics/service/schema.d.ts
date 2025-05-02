@@ -28,4 +28,25 @@ export interface Schema {
      * The name of the project.
      */
     project?: string;
+    
+    /**
+     * The case style to use for file names.
+     * Options: 'pascal', 'camel', 'kebab', 'snake'
+     */
+    fileNameCase?: 'pascal' | 'camel' | 'kebab' | 'snake';
+    
+    /**
+     * Internal configuration passed from command.
+     */
+    _config?: any;
+    
+    /**
+     * Custom file path for service file (from configuration).
+     */
+    serviceFilePath?: string;
+    
+    /**
+     * Custom file name for service file (from configuration).
+     */
+    serviceFileName?: string;
 }
